@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using InflatableIdiots.Hazards;
 using InflatableIdiots.Hose;
@@ -46,6 +47,8 @@ namespace InflatableIdiots.EditorTools
                 CreateGround(groundLayer);
                 CreateFanTrap(groundLayer);
                 CreateGoal();
+                CreateRisingHazard();
+                CreateRunController();
                 var pair = CreatePair();
 
                 var p1 = CreatePlayer("Player 1", new Vector3(-2f, 0f, 0f), new Color(0.4f, 0.6f, 1f), "Keyboard P1", inputAsset);
@@ -76,6 +79,7 @@ namespace InflatableIdiots.EditorTools
                     Debug.LogError($"[InflatableIdiots] SaveScene returned false for {ScenePath}.");
                     return;
                 }
+                EnsureSceneInBuildSettings(ScenePath);
                 Debug.Log($"[InflatableIdiots] Built test scene at {ScenePath}. P1: WASD / LeftCtrl / LeftShift. P2: Arrows / RightCtrl / RightShift. Or plug in two gamepads.");
             }
             catch (System.Exception e)
@@ -101,7 +105,7 @@ namespace InflatableIdiots.EditorTools
 
         static void CreateGround(int groundLayer)
         {
-            var go = CreateColoredQuad("Ground", new Vector3(0f, -3f, 0f), new Vector3(20f, 1f, 1f), new Color(0.3f, 0.6f, 0.3f), LoadSprite(GroundSpritePath));
+            var go = CreateColoredQuad("Ground", new Vector3(0f, -3f, 0f), new Vector3(40f, 1f, 1f), new Color(0.3f, 0.6f, 0.3f), LoadSprite(GroundSpritePath));
             go.layer = groundLayer;
             go.AddComponent<BoxCollider2D>();
         }
@@ -143,6 +147,28 @@ namespace InflatableIdiots.EditorTools
             var trigger = go.AddComponent<BoxCollider2D>();
             trigger.isTrigger = true;
             go.AddComponent<GoalZone>();
+        }
+
+        static void CreateRisingHazard()
+        {
+            // Full-width "lava" bar that starts below the view and climbs. Kinematic + trigger so it engulfs
+            // (doesn't push) the players; RisingHazard ends the run on contact. Drawn on top so it reads as
+            // engulfing. Starts at y -6 (off-screen bottom) and rises into the play area.
+            var go = CreateColoredQuad("Rising Hazard", new Vector3(0f, -6f, 0f), new Vector3(42f, 1.5f, 1f),
+                new Color(0.9f, 0.3f, 0.15f, 0.85f), LoadSprite(GroundSpritePath));
+            go.GetComponent<SpriteRenderer>().sortingOrder = 2; // in front of players/geometry
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.bodyType = RigidbodyType2D.Kinematic;
+            var trigger = go.AddComponent<BoxCollider2D>();
+            trigger.isTrigger = true;
+            go.AddComponent<RisingHazard>();
+        }
+
+        static void CreateRunController()
+        {
+            // Owns win/lose state, the freeze-on-end, and R-to-restart. Plain GameObject, no transform needs.
+            var go = new GameObject("Run Controller");
+            go.AddComponent<RunController>();
         }
 
         static AirPair CreatePair()
@@ -213,6 +239,15 @@ namespace InflatableIdiots.EditorTools
                 if (asset is Sprite sprite) return sprite;
             Debug.LogWarning($"[InflatableIdiots] No Sprite found at '{path}'; that renderer will be left empty.");
             return null;
+        }
+
+        static void EnsureSceneInBuildSettings(string path)
+        {
+            var scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+            if (scenes.Exists(s => s.path == path)) return;
+            scenes.Add(new EditorBuildSettingsScene(path, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
+            Debug.Log($"[InflatableIdiots] Added {path} to Build Settings (enables runtime scene reload / standalone build).");
         }
 
         static int EnsureLayer(string layerName)

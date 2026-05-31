@@ -49,7 +49,7 @@ namespace InflatableIdiots.Hose
         [SerializeField] float nodeColliderRadius = 0.1f;
 
         [Header("Render")]
-        [SerializeField] float width = 0.12f;
+        [SerializeField] float width = 0.3f;
         [SerializeField] Color colorA = new Color(0.85f, 0.85f, 0.9f);
         [SerializeField] Color colorB = new Color(0.6f, 0.7f, 0.85f);
 

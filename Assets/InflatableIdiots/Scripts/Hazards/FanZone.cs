@@ -35,9 +35,10 @@ namespace InflatableIdiots.Hazards
 
         void OnTriggerEnter2D(Collider2D other)
         {
-            // Static geometry (ground, housing, perch) has no attached body → ignored.
+            // Only push dynamic bodies. Static geometry has no attached body; the kinematic rising hazard
+            // would ignore forces anyway, so skip it rather than tracking it pointlessly.
             var rb = other.attachedRigidbody;
-            if (rb != null) bodies.Add(rb);
+            if (rb != null && rb.bodyType == RigidbodyType2D.Dynamic) bodies.Add(rb);
         }
 
         void OnTriggerExit2D(Collider2D other)
