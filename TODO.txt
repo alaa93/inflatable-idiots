@@ -1,0 +1,36 @@
+Summary of where we land:
+
+  - Title: Inflatable Idiots (locked, researched)
+  - Engine: Unity 6000.3.14f1 LTS, 2D, Rigidbody2D (locked)
+  - Input: New Input System, PlayerInput component, two gamepads on one PC, local co-op only
+  - Folder layout: Assets/InflatableIdiots/ for first-party, Assets/Third-Party/ for imports, Editor/ subfolder for build scripts
+  - MVP scope: 2-week lean build — one scene, Fan Trap only, primitives art, no meta/cosmetics/procedural/mobile/netcode
+  - Validation gate: core mechanic before everything else — if air-share doesn't feel right with two capsules and two gamepads, no content saves it
+  - Closed-beta target: ~2026-06-08
+  - First task next session: InflatableCharacter.cs with PDF's symmetric air-share math + mass/gravity/scale lerp + walk + jump
+
+  When you start next session, paste your Packages/manifest.json (or just confirm Input System + 2D feature set are installed) and I'll dive straight
+   into the first script.
+
+
+ActionMap: "Player"
+    Actions:
+      Move       (Value, Vector2)
+      Jump       (Button)
+      AirTransfer(Value, float 0..1)   // analog on gamepad, 0/1 on keyboard
+
+  Control schemes:
+    "Gamepad"
+      Move        → Left Stick
+      Jump        → South button (A / Cross)
+      AirTransfer → Right Trigger    // push trigger = push air to partner
+
+    "Keyboard P1"
+      Move        → WASD
+      Jump        → Space
+      AirTransfer → Left Shift (held)
+
+    "Keyboard P2"
+      Move        → Arrow keys
+      Jump        → Right Shift
+      AirTransfer → Right Ctrl (held)
