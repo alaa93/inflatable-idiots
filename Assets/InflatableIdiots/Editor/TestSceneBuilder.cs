@@ -1,6 +1,7 @@
 using System.IO;
 using InflatableIdiots.Hazards;
 using InflatableIdiots.Hose;
+using InflatableIdiots.Level;
 using InflatableIdiots.Player;
 using InflatableIdiots.View;
 using UnityEditor;
@@ -44,6 +45,7 @@ namespace InflatableIdiots.EditorTools
                 var cameraGo = CreateCamera();
                 CreateGround(groundLayer);
                 CreateFanTrap(groundLayer);
+                CreateGoal();
                 var pair = CreatePair();
 
                 var p1 = CreatePlayer("Player 1", new Vector3(-2f, 0f, 0f), new Color(0.4f, 0.6f, 1f), "Keyboard P1", inputAsset);
@@ -121,12 +123,26 @@ namespace InflatableIdiots.EditorTools
             trigger.isTrigger = true;
             column.AddComponent<FanZone>();
 
-            // Perch — a ledge offset to the side (so it doesn't ceiling the column) for the lifted, air-steered
-            // player to land on. Reaching it is the kite moment; no win logic yet, just a target to aim at.
-            var perch = CreateColoredQuad("Perch", new Vector3(8f, 4.25f, 0f), new Vector3(3f, 0.5f, 1f),
-                new Color(0.5f, 0.5f, 0.55f), LoadSprite(GroundSpritePath));
-            perch.layer = groundLayer;
-            perch.AddComponent<BoxCollider2D>();
+            // Blocking wall — sits just right of the updraft, too tall to clear from the ground. Riding the
+            // fan up and drifting over it is the showcased way past (top y 3.0 < updraft top y 4.75). Because
+            // air is zero-sum, only one player can be light enough to cross at a time → forces taking turns.
+            var wall = CreateColoredQuad("Wall", new Vector3(7f, 0.25f, 0f), new Vector3(0.6f, 5.5f, 1f),
+                new Color(0.22f, 0.2f, 0.28f), LoadSprite(GroundSpritePath));
+            wall.layer = groundLayer;
+            wall.AddComponent<BoxCollider2D>();
+        }
+
+        static void CreateGoal()
+        {
+            // Objective on the far side of the wall. Translucent trigger over the right-hand ground; the
+            // GoalZone latches a win once BOTH players are inside at once. Default layer + isTrigger so it
+            // neither blocks movement nor registers as standable ground.
+            var go = CreateColoredQuad("Goal", new Vector3(9f, -1.25f, 0f), new Vector3(2.5f, 2.5f, 1f),
+                new Color(0.95f, 0.85f, 0.2f, 0.25f), LoadSprite(GroundSpritePath));
+            go.GetComponent<SpriteRenderer>().sortingOrder = -1; // behind the players
+            var trigger = go.AddComponent<BoxCollider2D>();
+            trigger.isTrigger = true;
+            go.AddComponent<GoalZone>();
         }
 
         static AirPair CreatePair()
