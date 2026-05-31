@@ -1,4 +1,5 @@
 using System.IO;
+using InflatableIdiots.Hazards;
 using InflatableIdiots.Hose;
 using InflatableIdiots.Player;
 using InflatableIdiots.View;
@@ -42,6 +43,7 @@ namespace InflatableIdiots.EditorTools
             {
                 var cameraGo = CreateCamera();
                 CreateGround(groundLayer);
+                CreateFanTrap(groundLayer);
                 var pair = CreatePair();
 
                 var p1 = CreatePlayer("Player 1", new Vector3(-2f, 0f, 0f), new Color(0.4f, 0.6f, 1f), "Keyboard P1", inputAsset);
@@ -100,6 +102,31 @@ namespace InflatableIdiots.EditorTools
             var go = CreateColoredQuad("Ground", new Vector3(0f, -3f, 0f), new Vector3(20f, 1f, 1f), new Color(0.3f, 0.6f, 0.3f), LoadSprite(GroundSpritePath));
             go.layer = groundLayer;
             go.AddComponent<BoxCollider2D>();
+        }
+
+        static void CreateFanTrap(int groundLayer)
+        {
+            // Fan housing — a solid pedestal the updraft rises from (Ground layer so players can stand on it).
+            var housing = CreateColoredQuad("Fan Housing", new Vector3(5f, -2.25f, 0f), new Vector3(2.5f, 0.5f, 1f),
+                new Color(0.25f, 0.25f, 0.3f), LoadSprite(GroundSpritePath));
+            housing.layer = groundLayer;
+            housing.AddComponent<BoxCollider2D>();
+
+            // Updraft column — translucent trigger zone carrying the FanZone force. Rises from the housing top
+            // (y -2.25) to y 4.75. Default layer (NOT Ground) so it never registers as standable ground.
+            var column = CreateColoredQuad("Fan Updraft", new Vector3(5f, 1.25f, 0f), new Vector3(2.5f, 7f, 1f),
+                new Color(0.45f, 0.8f, 1f, 0.18f), LoadSprite(GroundSpritePath));
+            column.GetComponent<SpriteRenderer>().sortingOrder = -1; // behind the players
+            var trigger = column.AddComponent<BoxCollider2D>();
+            trigger.isTrigger = true;
+            column.AddComponent<FanZone>();
+
+            // Perch — a ledge offset to the side (so it doesn't ceiling the column) for the lifted, air-steered
+            // player to land on. Reaching it is the kite moment; no win logic yet, just a target to aim at.
+            var perch = CreateColoredQuad("Perch", new Vector3(8f, 4.25f, 0f), new Vector3(3f, 0.5f, 1f),
+                new Color(0.5f, 0.5f, 0.55f), LoadSprite(GroundSpritePath));
+            perch.layer = groundLayer;
+            perch.AddComponent<BoxCollider2D>();
         }
 
         static AirPair CreatePair()
