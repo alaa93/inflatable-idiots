@@ -9,7 +9,8 @@ tags: [networking, fishnet]
 
 ## Approach
 - **Server** runs the real spring-rope (`HoseController.BuildAsHost`) and broadcasts node positions ~25 Hz via `[ObserversRpc] RenderRope(Vector2[])`
-- **Clients** never simulate the rope — they call `HoseController.RenderFromPoints(...)` to draw it (uses the additive `RenderOnly` / `Managed` hooks)
+- **Clients** never simulate the rope — they store the snapshot and **ease the LineRenderer toward it each frame** (`HoseController.SmoothClientRope`, framerate-independent), so it's smooth at the 25 Hz rate instead of choppy (added 2026-06-03)
+- **Rope ends anchor to the live local players** on the client (`NetworkHose.ResolveClientEndpoints` finds them by slot) so the hose stays attached to the smoothly-moving characters instead of trailing the delayed snapshot. Tunable `clientSmoothing` (default 20) on HoseController.
 - Endpoints (the two player rigidbodies) are injected by [[Network Spawner]] *before* spawn; `Managed` is set in Awake so `HoseController.Start` no-ops and the FishNet lifecycle drives it
 - `ExcludeServer = true` on the RPC: the host draws its own simulated rope
 

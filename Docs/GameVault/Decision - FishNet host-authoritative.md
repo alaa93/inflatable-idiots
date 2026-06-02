@@ -18,8 +18,8 @@ date: 2026-06-02
 Decision held after a full Fusion comparison. Revisit Fusion (Host Mode) only if: validates online **and** genuinely goes 3-4P drop-in co-op needing resilience **and** wants matchmaking/ecosystem **and** accepts cloud dependency.
 
 ## Consequences
-- Spike runs **host-authoritative, no prediction on purpose** — to *measure* the unpredicted feel before deciding
-- The [[Networking Spike]] two-PC test produces that measurement → then decide whether to enable FishNet prediction
+- Spike first ran **host-authoritative, no prediction** to *measure* the unpredicted feel — the 2-PC test proved it laggy
+- **Prediction now ENABLED** (2026-06-03) — the hedge paid off, no framework swap needed. See [[FishNet Netcode]] / [[Network Player Controller]] / [[Setup and Gotchas]]
 - Model: listen-server over SDR — see [[Networking Architecture]]
 
 ## Connections

@@ -8,11 +8,11 @@ tags: [networking, milestone]
 A thin vertical proof-of-concept to validate the riskiest 20% of online play ([[Networking Architecture]]) **before** building full netcode or porting the [[Fan Trap]]. Approved plan lives at `.claude/plans/write-up-the-spike-temporal-sonnet.md`.
 
 ## What it must prove
-1. ✅ Steam init on 480, private lobby, overlay invite/accept ([[Steam Integration]])
-2. 🔲 FishNet connect host+client over SDR across two PCs ([[FishNet Netcode]])
-3. ◑ Two bodies synced host-authoritatively ([[Network Player Controller]], [[Network Spawner]]) — **solo host verified**, 2-PC pending
-4. 🔲 Hose simulates on host, renders on client ([[Network Hose]])
-5. 🔲 Zero-sum air-share over the wire ([[Network Air Budget]])
+1. ✅ Steam init on 480, private lobby (overlay invite doesn't inject on 480 direct-launch → overlay-free **Join-by-SteamID**; [[Steam Integration]])
+2. ✅ FishNet connect host+client over SDR across two PCs ([[FishNet Netcode]])
+3. ✅ Two bodies synced + **client-side prediction** ([[Network Player Controller]], [[Network Spawner]])
+4. ✅ Hose simulates on host, renders + smooths on client ([[Network Hose]])
+5. ✅ Zero-sum air-share over the wire, per-tick synced ([[Network Air Budget]])
 
 ## Status (2026-06-02)
 - All runtime code written; merged into `main` (was branch `networking-spike`, PR #1)
@@ -33,8 +33,11 @@ First [[Network Spawner]] used the wrong hook and nothing appeared. Fixed by mir
 - Set `spawnHoseLink: 1` in `NetworkSpikeTest.unity` → the link (hose rope + zero-sum air-share) spawns when both players join. This is **playtest 2** (the movement-only build = playtest 1; uncheck the toggle + rebuild to get it back).
 - **Watch:** `NetworkPlayer`'s NetworkTransform syncs scale AND `InflatableCharacter` drives scale locally from the synced budget (double-drive). Should converge; if the remote body's scale jitters, set **Synchronize Scale = off** on the player NetworkTransform (scale is derived everywhere from the budget).
 
+## Update — prediction + smoothness (2026-06-03)
+2-PC test: spawn / move / hose / air-share all worked but **felt laggy** (unpredicted host-auth) → enabled **client-side prediction** ([[Network Player Controller]] rewrite). The first prediction build still lagged because the **TimeManager PhysicsMode wasn't set** (silent no-op — see [[Setup and Gotchas]]); fixed. Then a smoothness pass: **graphical-object smoothing** (sprite→child), **hose client interpolation + endpoint anchoring**, **per-tick budget sync** (was 10 Hz → size desync). Result: "much better and smoother." Remaining tuning: deflated remote-body jitter + verifying budget sync — awaiting playtest. The Photon Fusion switch stays parked unless this still isn't smooth enough ([[Networking Solutions - Comparison]]).
+
 ## Next session
-Build for PC B → two-PC test (both spawn + move, hose off) → if good, flip `spawnHoseLink` on and tackle [[Network Hose]] + [[Network Air Budget]] → then measure unpredicted feel (informs prediction decision in [[FishNet Netcode]]) → codify setup into a builder. Watch: remote client's `OnClientLoadedStartScenes` must fire server-side (no global scenes) for the 2nd player to spawn. See [[Roadmap]] and [[Setup and Gotchas]].
+Awaiting the playtest of the smoothness / air-budget fixes. If the deflated remote-body jitter persists → bump NetworkObject `_spectatorInterpolation`. Then codify the manual scene/prefab setup into a `NetworkSpikeSceneBuilder`, and reset **Project Settings → Physics 2D → Simulation Mode → Fixed Update** for local play (see [[Setup and Gotchas]]). See [[Roadmap]].
 
 ## Connections
 [[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Windows Build]] · [[Setup and Gotchas]]

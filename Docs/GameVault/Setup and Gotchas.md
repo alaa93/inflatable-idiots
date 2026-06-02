@@ -14,14 +14,24 @@ Hard-won setup landmines for the networking stack ([[Tech Stack and Versions]]).
 - **Privilege match**: Steam ↔ Unity must run at the same Windows integrity level (don't run one as Administrator and not the other).
 
 ## FishNet wiring (the silent breakers)
-- **NetworkTransform → Client Authoritative = OFF** (server authority), Component Config = **Rigidbody2D**. With it ON, the kinematic owner sends a frozen transform and nothing syncs.
 - **FishySteamworks → Peer To Peer = ON** (uses SteamNetworkingSockets / SDR).
 - **Remove FishNet's built-in `PlayerSpawner`** from the demo NetworkManager — [[Network Spawner]] replaces it.
 - Spawn players via `SceneManager.OnClientLoadedStartScenes` + `AddOwnerToDefaultScene` (the hook FishNet's own spawner uses), NOT `OnRemoteConnectionState`. See [[Network Spawner]].
 - Networked objects need **prefabs** with NetworkObject (contrast: local players are built from code by [[Test Scene Builder]]).
 
+## Prediction gotchas (the silent ones — added 2026-06-03)
+These cost a full debugging session because FishNet does **not** warn — it just silently runs unpredicted/laggy:
+- **TimeManager Physics Mode = `TimeManager`** is REQUIRED for Rigidbody2D prediction. Without it physics auto-simulates, reconcile can't rewind, and prediction is a **silent no-op** (feels exactly like no prediction). FishNet auto-adds a TimeManager with the default `Unity` mode if you don't add one — so you must add it *and* set the mode.
+- **NetworkObject → Enable Prediction + Prediction Type = Rigidbody2D**, and **remove the NetworkTransform** (reconcile replaces it; leaving it on overrides prediction with delayed server positions = client lag).
+- **Assign a Graphical Object** (sprite on a child) on the NetworkObject, or reconcile corrections *snap* the body instead of easing → looks laggy/jittery even when prediction works.
+- **Physics SimulationMode leaks into ProjectSettings**: after in-editor play-testing, FishNet's runtime Script mode can persist into `Physics2DSettings`/`DynamicsManager` (`m_SimulationMode: 2`). This **freezes local (non-networked) scene physics** until you reset **Project Settings → Physics 2D → Simulation Mode → Fixed Update**. Keep it out of git.
+- **SyncVar default send rate is 0.1 s (10 Hz)** — too slow for continuously-changing values. The air budget's size visibly lagged during inflation until set to send every tick (`SyncTypeSettings(0f)`). See [[Network Air Budget]].
+
+## Steam overlay on App ID 480
+The in-game Steam overlay (hence `ActivateGameOverlayInviteDialog`) does **not** inject into a directly-launched build on 480 — it only injects when launched through Steam under your own App ID. Not a code bug; the invite code is correct. For 2-PC testing, the spike harness (`NetworkBootstrap`) has an overlay-free **"Join by host SteamID"** path (host auto-copies its SteamID to clipboard). The overlay will work once on a real App ID launched from the Steam library.
+
 ## Confirmed working
-`SteamAPI.Init` → `Init OK as Scorpio`; solo host spawns + moves. See [[Networking Spike]].
+`SteamAPI.Init` → `Init OK`; 2-PC play with client-side prediction — "much better and smoother" per playtest. Steam standalone fix (auto-copy `steam_appid.txt`) confirmed. See [[Networking Spike]].
 
 ## Connections
-[[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Windows Build]] · [[Tech Stack and Versions]] · [[Networking Spike]]
+[[Steam Integration]] · [[FishNet Netcode]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Network Spawner]] · [[Windows Build]] · [[Tech Stack and Versions]] · [[Networking Spike]]
