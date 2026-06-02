@@ -22,8 +22,14 @@ A thin vertical proof-of-concept to validate the riskiest 20% of online play ([[
 ## Key fix this session
 First [[Network Spawner]] used the wrong hook and nothing appeared. Fixed by mirroring FishNet's PlayerSpawner: `SceneManager.OnClientLoadedStartScenes` + `AddOwnerToDefaultScene`. Remove FishNet's built-in `PlayerSpawner` from the NetworkManager.
 
+## Update (2026-06-02, later) — spawn+movement step, hose deferred
+- **FishNet re-confirmed** vs a serious Photon Fusion proposal — see [[Decision - FishNet host-authoritative]] / [[Networking Solutions - Comparison]].
+- **Steam standalone fix:** `BuildWindows.cs` now auto-copies `steam_appid.txt` next to the `.exe` (was the "Steam works in editor, not in build" bug). Confirmed working.
+- **Client path verified already-implemented** — no new gameplay code. Per-connection spawn + owner-input→ServerRpc→server-physics→NetworkTransform is complete.
+- Added `spawnHoseLink` toggle (default **OFF**) to [[Network Spawner]] → goals 4 & 5 (hose, air-share) deliberately deferred so this step isolates **two-body spawn + movement**.
+
 ## Next session
-Build for PC B → two-PC test → measure unpredicted feel (informs the prediction decision in [[FishNet Netcode]]) → then codify setup into a builder. See [[Roadmap]] and [[Setup and Gotchas]].
+Build for PC B → two-PC test (both spawn + move, hose off) → if good, flip `spawnHoseLink` on and tackle [[Network Hose]] + [[Network Air Budget]] → then measure unpredicted feel (informs prediction decision in [[FishNet Netcode]]) → codify setup into a builder. Watch: remote client's `OnClientLoadedStartScenes` must fire server-side (no global scenes) for the 2nd player to spawn. See [[Roadmap]] and [[Setup and Gotchas]].
 
 ## Connections
 [[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Windows Build]] · [[Setup and Gotchas]]

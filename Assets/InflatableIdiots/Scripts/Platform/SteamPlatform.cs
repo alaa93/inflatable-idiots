@@ -84,8 +84,24 @@ namespace InflatableIdiots.Platform
 
         public void OpenInviteOverlay()
         {
-            if (currentLobby.m_SteamID != 0)
-                SteamFriends.ActivateGameOverlayInviteDialog(currentLobby);
+            if (currentLobby.m_SteamID == 0)
+            {
+                Debug.LogWarning("[Steam] Invite ignored — no lobby yet. Click Host first and wait for " +
+                                 "status 'Hosting (lobby …). Click Invite'.");
+                return;
+            }
+            // The overlay only exists in a BUILD with Steam running — it does NOT work in the Unity Editor,
+            // which is the usual reason the invite dialog "does nothing, with no error."
+            if (!SteamUtils.IsOverlayEnabled())
+            {
+                Debug.LogWarning("[Steam] Steam overlay unavailable, so the invite dialog can't open. " +
+                                 "Expected in the Editor. In a build: launch with Steam running and enable " +
+                                 "Steam → Settings → In Game → Steam Overlay.");
+                return;
+            }
+
+            SteamFriends.ActivateGameOverlayInviteDialog(currentLobby);
+            Debug.Log($"[Steam] Opened invite overlay for lobby {currentLobby.m_SteamID}.");
         }
 
         public void SetLobbyData(string key, string value)

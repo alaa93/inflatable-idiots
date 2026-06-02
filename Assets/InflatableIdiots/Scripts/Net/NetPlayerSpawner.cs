@@ -22,6 +22,9 @@ namespace InflatableIdiots.Net
         [SerializeField] GameObject playerPrefab;
         [Tooltip("Link prefab carrying HoseController + NetworkHose + NetworkAirBudget.")]
         [SerializeField] GameObject linkPrefab;
+        [Tooltip("Spawn the hose/air-budget link once both players join. OFF for the spawn+movement test " +
+                 "step (isolates two-body sync); turn ON when wiring up the hose in the next step.")]
+        [SerializeField] bool spawnHoseLink = false;
         [SerializeField] Vector3[] spawnPoints = { new Vector3(-2f, 0f, 0f), new Vector3(2f, 0f, 0f) };
 
         NetworkManager networkManager;
@@ -60,7 +63,8 @@ namespace InflatableIdiots.Net
             ctrl.SetSlotServer(slot);
             players.Add(ctrl);
 
-            if (players.Count == 2 && !linkSpawned)
+            // Hose/air-budget link is deferred for the spawn+movement test step (see spawnHoseLink).
+            if (spawnHoseLink && players.Count == 2 && !linkSpawned)
                 SpawnLink();
         }
 
