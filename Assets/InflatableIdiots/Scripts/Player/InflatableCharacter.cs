@@ -38,6 +38,20 @@ namespace InflatableIdiots.Player
 
         public float TriggerValue { get; private set; }
 
+        // --- Networking seam (additive; defaults preserve local play) ---
+        // When false, FixedUpdate skips ground check + walk/jump so a remote client's body can be driven by
+        // NetworkTransform without local physics fighting it. UpdatePhysicsState still runs so inflation
+        // visuals (mass/gravity/scale) track the budget on every machine.
+        public bool SimulatePhysics = true;
+        // When set, overrides AirPair as the inflation-budget source (used by the server-authoritative
+        // NetworkAirBudget). Null => unchanged local behavior reading from `pair`.
+        public System.Func<float> BudgetSource = null;
+
+        // Server-side input injection mirroring the local PlayerInput callbacks (OnMove/OnJump/OnAirTransfer).
+        public void SetMoveInput(Vector2 v) => moveInput = v;
+        public void QueueJump() => jumpQueued = true;
+        public void SetTrigger(float t) => TriggerValue = t;
+
         Rigidbody2D rb;
         Vector2 moveInput;
         bool jumpQueued;
@@ -59,14 +73,22 @@ namespace InflatableIdiots.Player
             noiseSeed = Random.value * 1000f;
         }
 
-        void OnMove(InputValue v) => moveInput = v.Get<Vector2>();
-        void OnJump(InputValue v) { if (v.isPressed) jumpQueued = true; }
-        void OnAirTransfer(InputValue v) => TriggerValue = v.Get<float>();
+        // Networked players read input via NetworkInflatableController and feed it through the Set* methods,
+        // so set this true there to make these local SendMessages callbacks no-ops (one canonical input path).
+        public bool IgnoreLocalInputCallbacks = false;
+
+        void OnMove(InputValue v) { if (!IgnoreLocalInputCallbacks) moveInput = v.Get<Vector2>(); }
+        void OnJump(InputValue v) { if (!IgnoreLocalInputCallbacks && v.isPressed) jumpQueued = true; }
+        void OnAirTransfer(InputValue v) { if (!IgnoreLocalInputCallbacks) TriggerValue = v.Get<float>(); }
 
         void FixedUpdate()
         {
-            CheckGround();
+            // Inflation visuals track the budget on every machine (owner, remote, host).
             UpdatePhysicsState();
+            // Only the authority that owns this body's physics runs movement. On a remote client this body
+            // is kinematic and driven by NetworkTransform, so local walk/jump are skipped.
+            if (!SimulatePhysics) return;
+            CheckGround();
             ApplyWalk();
             ApplyJump();
         }
@@ -105,8 +127,13 @@ namespace InflatableIdiots.Player
 
         void UpdatePhysicsState()
         {
-            if (pair == null) return;
-            float budget = isP1 ? pair.P1Budget : pair.P2Budget;
+            float budget;
+            if (BudgetSource != null)
+                budget = BudgetSource();                       // networked: server-authoritative budget
+            else if (pair != null)
+                budget = isP1 ? pair.P1Budget : pair.P2Budget; // local: unchanged path
+            else
+                return;
             currentInflationK = Mathf.InverseLerp(0.1f, 0.9f, budget);
 
             rb.mass = Mathf.Lerp(massDeflated, massInflated, currentInflationK);
