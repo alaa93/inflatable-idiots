@@ -19,4 +19,4 @@ date: 2026-06-02
 - Model: listen-server over SDR — see [[Networking Architecture]]
 
 ## Connections
-[[FishNet Netcode]] · [[Networking Architecture]] · [[Networking Spike]] · [[Decision - Steam-first behind wrapper]] · [[Decision - 2P now 4P later]]
+[[FishNet Netcode]] · [[Networking Architecture]] · [[Networking Spike]] · [[Networking Solutions - Comparison]] · [[Decision - Steam-first behind wrapper]] · [[Decision - 2P now 4P later]]
