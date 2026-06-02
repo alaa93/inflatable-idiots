@@ -56,9 +56,35 @@ namespace InflatableIdiots.EditorTools
             BuildSummary summary = report.summary;
 
             if (summary.result == BuildResult.Succeeded)
+            {
+                CopySteamAppId(dir);
                 Debug.Log($"[InflatableIdiots] Build succeeded: {summary.totalSize / (1024 * 1024)} MB at {summary.outputPath}");
+            }
             else
                 Debug.LogError($"[InflatableIdiots] Build {summary.result} with {summary.totalErrors} error(s). See log above.");
+        }
+
+        /// <summary>
+        /// Steamworks.NET reads steam_appid.txt from the working directory at launch. The editor uses the
+        /// project root (where the file lives), but a fresh standalone build has no copy next to the .exe —
+        /// so SteamAPI.Init fails in builds unless we place it here. This is the #1 "Steam works in editor
+        /// but not in the build" cause. (Do NOT ship this file in a real Steam release — the Steam client
+        /// injects the real App ID; it's only for testing builds outside Steam, e.g. on App ID 480.)
+        /// </summary>
+        static void CopySteamAppId(string buildDir)
+        {
+            const string fileName = "steam_appid.txt";
+            string src = Path.Combine(Directory.GetCurrentDirectory(), fileName);
+            if (!File.Exists(src))
+            {
+                Debug.LogWarning($"[InflatableIdiots] {fileName} not found at project root — Steam will fail to " +
+                                 "init in this build. Create it (containing 480 for the spike) and rebuild.");
+                return;
+            }
+
+            string dst = Path.Combine(buildDir, fileName);
+            File.Copy(src, dst, overwrite: true);
+            Debug.Log($"[InflatableIdiots] Copied {fileName} → {dst} (so SteamAPI.Init works in the build).");
         }
 
         static string[] EnabledScenes()

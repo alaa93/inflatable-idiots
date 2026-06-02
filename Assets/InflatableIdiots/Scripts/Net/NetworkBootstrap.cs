@@ -77,23 +77,28 @@ namespace InflatableIdiots.Net
             status = $"Connecting to host {hostIdStr}…";
         }
 
+        GUIStyle buttonStyle;
+
         void OnGUI()
         {
-            const float w = 320f, h = 28f;
-            var r = new Rect(12f, 12f, w, h);
+            buttonStyle ??= new GUIStyle(GUI.skin.button) { fontSize = 24 };
 
-            GUI.Label(r, $"Steam: {status}"); r.y += h + 4f;
+            const float pad = 12f, labelW = 420f, labelH = 24f, btnW = 260f, btnH = 64f;
+            float x = pad, y = pad;
+
+            GUI.Label(new Rect(x, y, labelW, labelH), $"Steam: {status}");
+            y += labelH + 6f;
 
             bool connected = InstanceFinder.IsServerStarted || InstanceFinder.IsClientStarted;
             if (!connected)
             {
-                if (GUI.Button(r, "Host")) HostClicked();
-                r.y += h + 4f;
-                GUI.Label(r, "Joiner: accept the Steam overlay invite to connect.");
+                if (GUI.Button(new Rect(x, y, btnW, btnH), "Host", buttonStyle)) HostClicked();
+                y += btnH + 6f;
+                GUI.Label(new Rect(x, y, labelW, labelH), "Joiner: accept the Steam overlay invite to connect.");
             }
             else if (isHost)
             {
-                if (GUI.Button(r, "Invite Friend")) platform.OpenInviteOverlay();
+                if (GUI.Button(new Rect(x, y, btnW, btnH), "Invite Friend", buttonStyle)) platform.OpenInviteOverlay();
             }
         }
     }
