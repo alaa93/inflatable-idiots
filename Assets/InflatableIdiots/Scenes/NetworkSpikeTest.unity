@@ -166,6 +166,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InflatableIdiots.Net.NetPlayerSpawner
   playerPrefab: {fileID: 495083167668438477, guid: ee26bc4c5ce6f6a4391873f6938e60b5, type: 3}
   linkPrefab: {fileID: 1205806150947879849, guid: 5a7185b3a366a564ab7a0033f83660ea, type: 3}
+  spawnHoseLink: 1
   spawnPoints:
   - {x: -2, y: 0, z: 0}
   - {x: 2, y: 0, z: 0}

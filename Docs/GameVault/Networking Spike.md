@@ -28,6 +28,11 @@ First [[Network Spawner]] used the wrong hook and nothing appeared. Fixed by mir
 - **Client path verified already-implemented** — no new gameplay code. Per-connection spawn + owner-input→ServerRpc→server-physics→NetworkTransform is complete.
 - Added `spawnHoseLink` toggle (default **OFF**) to [[Network Spawner]] → goals 4 & 5 (hose, air-share) deliberately deferred so this step isolates **two-body spawn + movement**.
 
+## Update — hose enabled (2026-06-02)
+- Verified [[Network Hose]] + [[Network Air Budget]] are already fully implemented; both prefabs registered in `DefaultPrefabObjects.asset`; scene `NetPlayerSpawner` wired (player + link prefabs assigned).
+- Set `spawnHoseLink: 1` in `NetworkSpikeTest.unity` → the link (hose rope + zero-sum air-share) spawns when both players join. This is **playtest 2** (the movement-only build = playtest 1; uncheck the toggle + rebuild to get it back).
+- **Watch:** `NetworkPlayer`'s NetworkTransform syncs scale AND `InflatableCharacter` drives scale locally from the synced budget (double-drive). Should converge; if the remote body's scale jitters, set **Synchronize Scale = off** on the player NetworkTransform (scale is derived everywhere from the budget).
+
 ## Next session
 Build for PC B → two-PC test (both spawn + move, hose off) → if good, flip `spawnHoseLink` on and tackle [[Network Hose]] + [[Network Air Budget]] → then measure unpredicted feel (informs prediction decision in [[FishNet Netcode]]) → codify setup into a builder. Watch: remote client's `OnClientLoadedStartScenes` must fire server-side (no global scenes) for the 2nd player to spawn. See [[Roadmap]] and [[Setup and Gotchas]].
 
