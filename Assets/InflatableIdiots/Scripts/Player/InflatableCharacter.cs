@@ -52,6 +52,22 @@ namespace InflatableIdiots.Player
         public void QueueJump() => jumpQueued = true;
         public void SetTrigger(float t) => TriggerValue = t;
 
+        /// <summary>
+        /// One networked movement step, driven by <see cref="Net.NetworkInflatableController"/>'s prediction
+        /// [Replicate] so movement runs per network tick (and replays correctly during reconcile) instead of
+        /// FixedUpdate. Shares the exact ground-check/walk/jump/inflation logic with local play. Operates on
+        /// the Rigidbody2D directly; the controller wraps that body in a PredictionRigidbody2D for reconcile.
+        /// </summary>
+        public void Tick(Vector2 move, bool jump)
+        {
+            moveInput = move;
+            if (jump) jumpQueued = true;
+            UpdatePhysicsState();
+            CheckGround();
+            ApplyWalk();
+            ApplyJump();
+        }
+
         Rigidbody2D rb;
         Vector2 moveInput;
         bool jumpQueued;

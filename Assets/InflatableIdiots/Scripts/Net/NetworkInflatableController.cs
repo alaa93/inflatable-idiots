@@ -1,5 +1,9 @@
+using FishNet.Managing.Timing;
 using FishNet.Object;
+using FishNet.Object.Prediction;
 using FishNet.Object.Synchronizing;
+using FishNet.Transporting;
+using FishNet.Utility.Template;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using InflatableIdiots.Player;
@@ -7,19 +11,64 @@ using InflatableIdiots.Player;
 namespace InflatableIdiots.Net
 {
     /// <summary>
-    /// Thin networking driver for one inflatable player. Host-authoritative, NO client-side prediction:
-    /// the owner captures local input and ships it to the server each tick; the server applies it to the
-    /// authoritative <see cref="InflatableCharacter"/> (which simulates physics only on the server). On
-    /// remote clients the body is kinematic and driven by NetworkTransform.
+    /// Client-side-predicted driver for one inflatable player (FishNet Prediction V2). The owner predicts
+    /// movement locally each tick for instant response; the server runs the same [Replicate] authoritatively
+    /// and sends [Reconcile] snapshots that rewind + replay the client. This replaced the old
+    /// host-authoritative ServerRpc-input model, which felt laggy on the owner under real latency (confirmed
+    /// in the 2-PC playtest 2026-06-02).
     ///
-    /// `Slot` (0 or 1) is assigned by <see cref="NetPlayerSpawner"/> on the server and read by
-    /// <see cref="NetworkAirBudget"/> to map this player onto the zero-sum budget.
+    /// Movement logic itself lives in <see cref="InflatableCharacter.Tick"/> so local (non-networked) play
+    /// and networked prediction share ONE code path; this component only routes input → replicate → reconcile.
+    /// The physics body is wrapped in a <see cref="PredictionRigidbody2D"/> for reconcile state capture.
+    ///
+    /// Requires: NetworkObject "Enable Prediction" = on, Prediction Type = Rigidbody2D, a Graphical Object
+    /// assigned (child sprite) for smoothing; NetworkTransform removed; TimeManager Physics Mode = TimeManager.
     /// </summary>
     [RequireComponent(typeof(InflatableCharacter))]
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(PlayerInput))]
-    public class NetworkInflatableController : NetworkBehaviour
+    public class NetworkInflatableController : TickNetworkBehaviour
     {
+        #region Prediction data.
+        public struct ReplicateData : IReplicateData
+        {
+            public Vector2 Move;
+            public bool Jump;
+            public float Trigger;
+
+            public ReplicateData(Vector2 move, bool jump, float trigger)
+            {
+                Move = move;
+                Jump = jump;
+                Trigger = trigger;
+                _tick = 0;
+            }
+
+            private uint _tick;
+            public void Dispose() { }
+            public uint GetTick() => _tick;
+            public void SetTick(uint value) => _tick = value;
+        }
+
+        public struct ReconcileData : IReconcileData
+        {
+            // Captures the authoritative Rigidbody2D state (position/velocity/etc.) for rewind.
+            public PredictionRigidbody2D Body;
+
+            public ReconcileData(PredictionRigidbody2D body)
+            {
+                Body = body;
+                _tick = 0;
+            }
+
+            private uint _tick;
+            public void Dispose() { }
+            public uint GetTick() => _tick;
+            public void SetTick(uint value) => _tick = value;
+        }
+        #endregion
+
+        // Assigned by NetPlayerSpawner on the server; read by NetworkAirBudget to map onto the zero-sum budget.
         readonly SyncVar<int> _slot = new SyncVar<int>();
         public int SlotValue => _slot.Value;
 
@@ -27,7 +76,8 @@ namespace InflatableIdiots.Net
         Rigidbody2D rb;
         PlayerInput input;
         InputAction moveAction, jumpAction, triggerAction;
-        bool jumpEdge;
+        readonly PredictionRigidbody2D _prb = new PredictionRigidbody2D();
+        bool jumpEdge;   // owner-only: latch a jump press between ticks
 
         public InflatableCharacter Character => character;
 
@@ -36,9 +86,11 @@ namespace InflatableIdiots.Net
             character = GetComponent<InflatableCharacter>();
             rb = GetComponent<Rigidbody2D>();
             input = GetComponent<PlayerInput>();
-            // Networked input flows through SubmitInput -> InflatableCharacter.Set*; silence the local
-            // SendMessages callbacks so there's a single canonical input path.
+            // The controller is the single canonical input path; silence InflatableCharacter's local
+            // SendMessages callbacks and its FixedUpdate movement (movement now runs in the predicted Tick).
             character.IgnoreLocalInputCallbacks = true;
+            character.SimulatePhysics = false;
+            _prb.Initialize(rb);
         }
 
         /// <summary>Server-only: set which budget slot (0 or 1) this player occupies.</summary>
@@ -47,32 +99,20 @@ namespace InflatableIdiots.Net
         public override void OnStartNetwork()
         {
             base.OnStartNetwork();
-            bool server = base.IsServerInitialized;
-            // Only the server runs movement physics; remote clients are kinematic and follow NetworkTransform.
-            character.SimulatePhysics = server;
-            if (!server)
-                rb.bodyType = RigidbodyType2D.Kinematic;
+            // Rigidbody prediction needs both the tick (replicate) and post-tick (reconcile) callbacks.
+            SetTickCallbacks(TickCallback.Tick | TickCallback.PostTick);
         }
 
         public override void OnStartClient()
         {
             base.OnStartClient();
-            // Only the local owner reads a device; everyone else's PlayerInput stays off (avoids device-grab
-            // conflicts between the two PlayerInputs).
+            // Only the local owner reads a device; everyone else's PlayerInput stays off.
             input.enabled = base.IsOwner;
             if (!base.IsOwner) return;
 
             moveAction = input.actions.FindAction("Move");
             jumpAction = input.actions.FindAction("Jump");
             triggerAction = input.actions.FindAction("AirTransfer");
-            base.TimeManager.OnTick += OnTick;
-        }
-
-        public override void OnStopClient()
-        {
-            base.OnStopClient();
-            if (base.IsOwner && base.TimeManager != null)
-                base.TimeManager.OnTick -= OnTick;
         }
 
         void Update()
@@ -83,22 +123,52 @@ namespace InflatableIdiots.Net
                 jumpEdge = true;
         }
 
-        void OnTick()
+        protected override void TimeManager_OnTick()
         {
-            if (!base.IsOwner) return;
+            PerformReplicate(BuildMoveData());
+        }
+
+        protected override void TimeManager_OnPostTick()
+        {
+            CreateReconcile();
+        }
+
+        /// <summary>Owner builds the input for this tick; everyone else replays/extrapolates from reconcile.</summary>
+        ReplicateData BuildMoveData()
+        {
+            if (!base.IsOwner)
+                return default;
+
             Vector2 move = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
             float trigger = triggerAction != null ? triggerAction.ReadValue<float>() : 0f;
             bool jump = jumpEdge;
             jumpEdge = false;
-            SubmitInput(move, jump, trigger);
+            return new ReplicateData(move, jump, trigger);
         }
 
-        [ServerRpc]
-        void SubmitInput(Vector2 move, bool jump, float trigger)
+        public override void CreateReconcile()
         {
-            character.SetMoveInput(move);
-            character.SetTrigger(trigger);
-            if (jump) character.QueueJump();
+            // Both server and client build this; the client uses its copy as a fallback for dropped packets.
+            ReconcileData rd = new ReconcileData(_prb);
+            PerformReconcile(rd);
+        }
+
+        [Replicate]
+        void PerformReplicate(ReplicateData rd, ReplicateState state = ReplicateState.Invalid, Channel channel = Channel.Unreliable)
+        {
+            // Trigger feeds the server-authoritative zero-sum air budget (read in NetworkAirBudget).
+            character.SetTrigger(rd.Trigger);
+            // Ground check + walk + jump + inflation state, on the rigidbody. Re-runs verbatim during replays.
+            character.Tick(rd.Move, rd.Jump);
+            // Flush any queued forces (none here — movement is velocity-based); FishNet then steps Physics2D.
+            _prb.Simulate();
+        }
+
+        [Reconcile]
+        void PerformReconcile(ReconcileData rd, Channel channel = Channel.Unreliable)
+        {
+            // Snap the rigidbody to the authoritative state; FishNet then replays buffered inputs to catch up.
+            _prb.Reconcile(rd.Body);
         }
     }
 }
