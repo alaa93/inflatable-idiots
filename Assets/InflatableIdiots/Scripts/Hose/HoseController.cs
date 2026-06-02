@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace InflatableIdiots.Hose
@@ -57,6 +58,14 @@ namespace InflatableIdiots.Hose
         Transform[] chain;   // [endA, node0, node1, ..., endB] — drawn in this order
         bool built;
 
+        // --- Networking seam (additive; default off preserves local play) ---
+        // When true (client), the rope is NOT simulated locally: Start skips BuildRope and the LineRenderer
+        // is driven externally via RenderFromPoints with node positions replicated from the host.
+        public bool RenderOnly = false;
+        // When true, Start does nothing — a NetworkHose drives the lifecycle (BuildAsHost on the server,
+        // InitAsClientRenderer on clients) so timing fits FishNet's spawn callbacks rather than Unity Start.
+        public bool Managed = false;
+
         /// <summary>Editor/runtime injection of the two endpoint bodies (called by TestSceneBuilder).</summary>
         public void Initialize(Rigidbody2D a, Rigidbody2D b)
         {
@@ -71,6 +80,13 @@ namespace InflatableIdiots.Hose
 
         void Start()
         {
+            if (Managed) return;   // NetworkHose drives the lifecycle in its FishNet callbacks
+            if (RenderOnly)
+            {
+                // Client: no physics rope; just prep the line so RenderFromPoints can drive it.
+                ConfigureLineAppearance();
+                return;
+            }
             if (endA == null || endB == null)
             {
                 Debug.LogWarning("[InflatableIdiots] HoseController has no endpoints; disabling.", this);
@@ -152,8 +168,14 @@ namespace InflatableIdiots.Hose
 
         void SetupLine()
         {
-            line.useWorldSpace = true;
+            ConfigureLineAppearance();
             line.positionCount = chain.Length;
+            UpdateLine();
+        }
+
+        void ConfigureLineAppearance()
+        {
+            line.useWorldSpace = true;
             line.startWidth = width;
             line.endWidth = width;
             line.numCornerVertices = 4;
@@ -165,7 +187,45 @@ namespace InflatableIdiots.Hose
             // custom material; deferred per MVP scope.
             if (line.sharedMaterial == null)
                 line.material = new Material(Shader.Find("Sprites/Default"));
-            UpdateLine();
+        }
+
+        /// <summary>Client render-only entry point: drive the LineRenderer from host-replicated node positions.</summary>
+        public void RenderFromPoints(IReadOnlyList<Vector2> pts)
+        {
+            if (line == null) line = GetComponent<LineRenderer>();
+            line.positionCount = pts.Count;
+            for (int i = 0; i < pts.Count; i++)
+                line.SetPosition(i, pts[i]);
+        }
+
+        /// <summary>Number of points in the simulated chain (host side), or 0 before BuildRope.</summary>
+        public int NodeCount => chain != null ? chain.Length : 0;
+
+        /// <summary>Host side: snapshot current chain world positions for replication to clients.</summary>
+        public Vector2[] SnapshotChain()
+        {
+            if (chain == null) return System.Array.Empty<Vector2>();
+            var pts = new Vector2[chain.Length];
+            for (int i = 0; i < chain.Length; i++)
+                pts[i] = chain[i].position;
+            return pts;
+        }
+
+        /// <summary>Server (managed): inject endpoints and build the real simulated rope now.</summary>
+        public void BuildAsHost(Rigidbody2D a, Rigidbody2D b)
+        {
+            Initialize(a, b);
+            RenderOnly = false;
+            if (line == null) line = GetComponent<LineRenderer>();
+            BuildRope();
+        }
+
+        /// <summary>Client (managed): no simulation; prep the line so RenderFromPoints can drive it.</summary>
+        public void InitAsClientRenderer()
+        {
+            RenderOnly = true;
+            if (line == null) line = GetComponent<LineRenderer>();
+            ConfigureLineAppearance();
         }
 
         void LateUpdate()
