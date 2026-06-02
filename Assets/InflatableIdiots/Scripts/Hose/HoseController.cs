@@ -66,6 +66,12 @@ namespace InflatableIdiots.Hose
         // InitAsClientRenderer on clients) so timing fits FishNet's spawn callbacks rather than Unity Start.
         public bool Managed = false;
 
+        // --- Client render smoothing (render-only path) ---
+        [Tooltip("How quickly the client rope eases toward replicated node positions. Higher = snappier catch-up.")]
+        [SerializeField] float clientSmoothing = 20f;
+        Vector2[] targetPoints;     // latest node positions received from the host
+        Vector2[] renderedPoints;   // eased positions actually drawn this frame
+
         /// <summary>Editor/runtime injection of the two endpoint bodies (called by TestSceneBuilder).</summary>
         public void Initialize(Rigidbody2D a, Rigidbody2D b)
         {
@@ -189,13 +195,23 @@ namespace InflatableIdiots.Hose
                 line.material = new Material(Shader.Find("Sprites/Default"));
         }
 
-        /// <summary>Client render-only entry point: drive the LineRenderer from host-replicated node positions.</summary>
+        /// <summary>Client render-only entry point: store host-replicated node positions as the interpolation
+        /// target. SmoothClientRope (LateUpdate) eases the LineRenderer toward it so the rope isn't choppy at
+        /// the ~25 Hz snapshot rate.</summary>
         public void RenderFromPoints(IReadOnlyList<Vector2> pts)
         {
             if (line == null) line = GetComponent<LineRenderer>();
-            line.positionCount = pts.Count;
-            for (int i = 0; i < pts.Count; i++)
-                line.SetPosition(i, pts[i]);
+            int n = pts.Count;
+            if (targetPoints == null || targetPoints.Length != n)
+            {
+                // First snapshot (or node count changed): snap so we don't ease in from stale/origin points.
+                targetPoints = new Vector2[n];
+                renderedPoints = new Vector2[n];
+                line.positionCount = n;
+                for (int i = 0; i < n; i++) { targetPoints[i] = pts[i]; renderedPoints[i] = pts[i]; line.SetPosition(i, pts[i]); }
+                return;
+            }
+            for (int i = 0; i < n; i++) targetPoints[i] = pts[i];
         }
 
         /// <summary>Number of points in the simulated chain (host side), or 0 before BuildRope.</summary>
@@ -228,9 +244,38 @@ namespace InflatableIdiots.Hose
             ConfigureLineAppearance();
         }
 
+        /// <summary>Client: the two live player bodies, used to anchor the rope ends to the locally-smooth
+        /// (predicted/interpolated) players instead of the delayed snapshot endpoints.</summary>
+        public void SetClientEndpoints(Rigidbody2D a, Rigidbody2D b) { endA = a; endB = b; }
+
         void LateUpdate()
         {
-            if (built) UpdateLine();
+            if (built) { UpdateLine(); return; }   // host: draw the real simulated rope every frame
+            if (RenderOnly) SmoothClientRope();    // client: ease toward replicated points
+        }
+
+        // Client-only: ease each drawn point toward its target. The two ends track the live local players so
+        // the rope stays attached as they move; intermediate nodes ease toward the host's snapshots. The
+        // exp-based factor is framerate-independent.
+        void SmoothClientRope()
+        {
+            if (targetPoints == null) return;
+            int n = targetPoints.Length;
+            if (n == 0) return;
+            if (renderedPoints == null || renderedPoints.Length != n)
+                renderedPoints = (Vector2[])targetPoints.Clone();
+            if (line.positionCount != n) line.positionCount = n;
+
+            float t = 1f - Mathf.Exp(-clientSmoothing * Time.deltaTime);
+            for (int i = 0; i < n; i++)
+            {
+                Vector2 target = targetPoints[i];
+                if (i == 0 && endA != null) target = endA.position;
+                else if (i == n - 1 && endB != null) target = endB.position;
+
+                renderedPoints[i] = Vector2.Lerp(renderedPoints[i], target, t);
+                line.SetPosition(i, renderedPoints[i]);
+            }
         }
 
         void UpdateLine()

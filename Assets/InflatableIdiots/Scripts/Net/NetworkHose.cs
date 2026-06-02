@@ -21,6 +21,7 @@ namespace InflatableIdiots.Net
         HoseController hose;
         Rigidbody2D endA, endB;   // server-only, set before Spawn
         float timer;
+        bool clientEndpointsResolved;
 
         void Awake()
         {
@@ -48,15 +49,38 @@ namespace InflatableIdiots.Net
             base.OnStartClient();
             if (base.IsServerInitialized) return;   // host already built the real rope in OnStartServer
             hose.InitAsClientRenderer();
+            ResolveClientEndpoints();
         }
 
         void Update()
         {
-            if (!base.IsServerInitialized) return;
-            timer += Time.deltaTime;
-            if (timer < sendInterval) return;
-            timer = 0f;
-            RenderRope(hose.SnapshotChain());
+            if (base.IsServerInitialized)
+            {
+                timer += Time.deltaTime;
+                if (timer < sendInterval) return;
+                timer = 0f;
+                RenderRope(hose.SnapshotChain());
+            }
+            else if (!clientEndpointsResolved)
+            {
+                ResolveClientEndpoints();   // players may spawn / slot-sync a frame or two after the link
+            }
+        }
+
+        // Client: find the two players by budget slot (0 -> endA, 1 -> endB) and anchor the rope ends to them.
+        void ResolveClientEndpoints()
+        {
+            var controllers = FindObjectsByType<NetworkInflatableController>(FindObjectsSortMode.None);
+            NetworkInflatableController a = null, b = null;
+            foreach (var c in controllers)
+            {
+                if (c.SlotValue == 0) a = c;
+                else if (c.SlotValue == 1) b = c;
+            }
+            if (a == null || b == null) return;   // slots not both synced yet; retry next frame
+
+            hose.SetClientEndpoints(a.GetComponent<Rigidbody2D>(), b.GetComponent<Rigidbody2D>());
+            clientEndpointsResolved = true;
         }
 
         // ExcludeServer: the host draws its own simulated rope via HoseController.LateUpdate, so it doesn't
