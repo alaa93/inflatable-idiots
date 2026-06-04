@@ -231,7 +231,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: -8584210593579550121
+  _initializedTimestamp: -8584210502793413708
 --- !u!114 &-5500335958010450820
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -263,6 +263,6 @@ MonoBehaviour:
   _componentIndexCache: 1
   _addedNetworkObject: {fileID: 3992021562294371137}
   _networkObjectCache: {fileID: 3992021562294371137}
-  transferSpeed: 1.5
-  minBudget: 0.1
-  maxBudget: 0.9
+  transferSpeed: 1.3
+  minBudget: 0.3
+  maxBudget: 0.7
