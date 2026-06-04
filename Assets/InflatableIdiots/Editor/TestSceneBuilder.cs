@@ -57,6 +57,7 @@ namespace InflatableIdiots.EditorTools
                 CreateGoal();
                 CreateRisingHazard();
                 CreateRunController();
+                CreatePhysicsDriver();
                 var pair = CreatePair();
 
                 var p1 = CreatePlayer("Player 1", new Vector3(-2f, 0f, 0f), new Color(0.4f, 0.6f, 1f), "Keyboard P1", inputAsset);
@@ -183,6 +184,16 @@ namespace InflatableIdiots.EditorTools
         {
             var go = new GameObject("AirPair");
             return go.AddComponent<AirPair>();
+        }
+
+        static void CreatePhysicsDriver()
+        {
+            // Keeps physics simulating in this non-networked scene even when a prior in-editor networked run
+            // left Physics2D in Script mode (FishNet's prediction requirement, which leaks across the editor
+            // session). Without it every Rigidbody2D hangs frozen — the "PlayerTest physics freeze". Plain
+            // GameObject, no transform needs.
+            var go = new GameObject("Physics Driver");
+            go.AddComponent<LocalPhysicsDriver>();
         }
 
         static HoseController CreateHose(GameObject p1, GameObject p2)
