@@ -72,7 +72,7 @@ namespace InflatableIdiots.Player
         Vector2 moveInput;
         bool jumpQueued;
         bool isGrounded;
-        float currentInflationK;
+        float currentInflationK = 0.5f; // even-split default so the very first rendered frame is 50%, before any budget source/FixedUpdate
         float noiseSeed;
 
         public void Initialize(AirPair airPair, bool playerOne, LayerMask ground)
@@ -149,7 +149,8 @@ namespace InflatableIdiots.Player
             else if (pair != null)
                 budget = isP1 ? pair.P1Budget : pair.P2Budget; // local: unchanged path
             else
-                return;
+                budget = 0.5f; // no source yet (networked, before the air-budget link spawns/wires) →
+                               // even 50% split so both players load at a matching mid-size, not deflated
             currentInflationK = Mathf.InverseLerp(0.1f, 0.9f, budget);
 
             rb.mass = Mathf.Lerp(massDeflated, massInflated, currentInflationK);
