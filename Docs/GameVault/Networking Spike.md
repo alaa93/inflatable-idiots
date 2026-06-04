@@ -46,6 +46,7 @@ Fix chain (committed `a98443a`..`655c02a`):
 - **Air-size desync fixed** — per-tick budget sync + retry-wire ([[Network Air Budget]]).
 - **Own-player sprite floor-dip fixed** — excluded Scale from the prediction graphical smoother + box collider ([[Player Character]]).
 - Added an on-screen [[Performance HUD]] (FPS + tick + RTT) for the perf tests.
+- **Initial-load fix** (`9600d09`): networked players rendered deflated until the air-budget link wired — now default to the even 50% split at load, so both load matching ([[Network Air Budget]]).
 
 ## Next session
 📌 Permanently fix the **PlayerTest physics freeze**: the committed `SimulationMode=Script` (FishNet's runtime leak) freezes local non-networked physics, and a plain revert re-leaks. Plan — commit Fixed Update + a small local `Physics2D.Simulate()` driver for non-networked scenes ([[Setup and Gotchas]]). Then codify the manual scene/prefab setup into a `NetworkSpikeSceneBuilder`. See [[Roadmap]].
