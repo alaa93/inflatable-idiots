@@ -163,8 +163,8 @@ MonoBehaviour:
   nodeMass: 0.02
   nodeGravityScale: 0.2
   nodeDrag: 1
-  springFrequency: 4
-  springDamping: 0.7
+  springFrequency: 2.5
+  springDamping: 0.9
   nodeColliders: 0
   nodeColliderRadius: 0.1
   width: 0.3
@@ -172,6 +172,7 @@ MonoBehaviour:
   colorB: {r: 0.6, g: 0.7, b: 0.85, a: 1}
   RenderOnly: 0
   Managed: 0
+  clientSmoothing: 20
 --- !u!114 &3992021562294371137
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -230,7 +231,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: -8584211703208674322
+  _initializedTimestamp: -8584210593579550121
 --- !u!114 &-5500335958010450820
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -40,8 +40,8 @@ namespace InflatableIdiots.Hose
 
         [Header("Spring")]
         [Tooltip("Spring stiffness in Hz. Lower = softer / stretchier tether (gentler tug on the players).")]
-        [SerializeField] float springFrequency = 4f;
-        [SerializeField, Range(0f, 1f)] float springDamping = 0.7f;
+        [SerializeField] float springFrequency = 2.5f;
+        [SerializeField, Range(0f, 1f)] float springDamping = 0.9f;
 
         [Header("Interaction (forward-looking — off for MVP visual)")]
         [Tooltip("Give nodes small colliders so the hose can catch on obstacles (e.g. the Fan Trap). " +

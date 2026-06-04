@@ -1789,8 +1789,8 @@ MonoBehaviour:
   nodeMass: 0.02
   nodeGravityScale: 0.2
   nodeDrag: 1
-  springFrequency: 4
-  springDamping: 0.7
+  springFrequency: 2.5
+  springDamping: 0.9
   nodeColliders: 0
   nodeColliderRadius: 0.1
   width: 0.3
