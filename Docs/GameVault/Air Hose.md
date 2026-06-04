@@ -11,6 +11,7 @@ The permanent tether between the two players. Makes the shared resource ([[Air-S
 - `LineRenderer` + a runtime chain of **6** featherweight `Rigidbody2D` nodes linked by soft `SpringJoint2D`
 - NOT a Verlet rope — a visual tether + soft length constraint
 - `slack` = 1.25 (rest length as a multiple of endpoint distance) so it sags
+- Spring tuned **soft** — frequency 2.5 Hz, damping 0.9 (softened from 4 / 0.7 on 2026-06-04 to reduce the networked taut-pull stutter; see [[Network Hose]])
 - Clean **sim/render split**: `BuildRope()` (sim) vs `UpdateLine()` (render) — this seam is what makes network render-only mode possible
 
 ## ⚠️ Hard-won fix (center anchors)

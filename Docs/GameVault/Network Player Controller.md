@@ -13,7 +13,8 @@ tags: [networking, fishnet]
 - Movement logic lives in `[[Player Character]].Tick()` so local play and networked prediction share ONE path; `SimulatePhysics = false` on networked players (movement runs in the tick, not FixedUpdate)
 - `PlayerInput` enabled only on the owner (avoids dual-keyboard device grabbing — see [[Input System]])
 - `SyncVar<int> Slot` (0/1) assigned by [[Network Spawner]], read by [[Network Air Budget]]
-- **Visual smoothing** via the NetworkObject's Graphical Object (sprite on a child) — corrections ease instead of snapping. NetworkTransform removed (reconcile replaces it). See [[Setup and Gotchas]].
+- **Visual smoothing** via the NetworkObject's Graphical Object (sprite on a child) — corrections ease instead of snapping. Smooths **Position + Rotation only**; Scale is budget-driven by [[Inflation State]] (not reconcile), and smoothing it dipped the owner's sprite into the floor.
+- **Spectated players are NOT predicted** (refined 2026-06-04). The NetworkObject runs with **state forwarding OFF** + a server-auth NetworkTransform, so spectators follow the host's real motion instead of replaying it without the host-only [[Network Hose]] force (the cause of the deflated-body stutter). This controller sets spectator bodies **kinematic** in `OnStartClient` — when `!IsOwner && !IsServerInitialized`: zero velocity + `bodyType = Kinematic` — so local physics can't fight the synced position. See [[Setup and Gotchas]].
 
 ## Where it lives
 - `Assets/InflatableIdiots/Scripts/Net/NetworkInflatableController.cs`

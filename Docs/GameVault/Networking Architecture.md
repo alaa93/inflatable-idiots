@@ -20,6 +20,9 @@ Steam account = identity; Steam **Lobbies** + friends overlay = the private part
 ## The hard part: the hose couples both bodies
 Host simulates the rope; clients render it from replicated node positions — see [[Network Hose]]. The [[Air-Share Mechanic]] budget runs server-only via [[Network Air Budget]].
 
+## Owner predicts, spectators interpolate (refined 2026-06-04)
+The **owner** runs client-side prediction for instant controls; **spectated** players sync via a server-auth NetworkTransform (state forwarding off) with kinematic bodies, following the host's real motion. Predicting spectators replayed them *without* the host-only hose force → stutter (worst when deflated). This split is what made the netcode feel smooth. See [[Network Player Controller]] / [[Setup and Gotchas]].
+
 ## Locked decisions
 - [[Decision - Steam-first behind wrapper]]
 - [[Decision - FishNet host-authoritative]]

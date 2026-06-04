@@ -25,11 +25,11 @@ Read the [[Core Hypothesis]]. Validated by a real playtest — see [[MVP Scope a
 ## The gym level (implemented)
 - [[Fan Trap]] — the single validation level
 - [[Fan Zone]] · [[Goal Zone]] · [[Rising Hazard]] · [[Run Controller]]
-- [[Test Scene Builder]] · [[Windows Build]]
+- [[Test Scene Builder]] · [[Windows Build]] · [[Performance HUD]]
 
 ## Online play (in progress — this is the current frontier)
 - [[Networking Architecture]] — the master plan
-- [[Networking Spike]] — the current proof-of-concept (solo host works; 2-PC next)
+- [[Networking Spike]] — 2-PC online co-op **validated** (smoothest test yet, 2026-06-04)
 - [[Steam Integration]] · [[FishNet Netcode]] · [[Platform Abstraction]]
 - [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Network Spawner]]
 - [[Voice Chat - Dissonance]] (deferred)

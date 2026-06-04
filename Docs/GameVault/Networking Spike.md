@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: validated
 tags: [networking, milestone]
 ---
 
@@ -36,8 +36,19 @@ First [[Network Spawner]] used the wrong hook and nothing appeared. Fixed by mir
 ## Update — prediction + smoothness (2026-06-03)
 2-PC test: spawn / move / hose / air-share all worked but **felt laggy** (unpredicted host-auth) → enabled **client-side prediction** ([[Network Player Controller]] rewrite). The first prediction build still lagged because the **TimeManager PhysicsMode wasn't set** (silent no-op — see [[Setup and Gotchas]]); fixed. Then a smoothness pass: **graphical-object smoothing** (sprite→child), **hose client interpolation + endpoint anchoring**, **per-tick budget sync** (was 10 Hz → size desync). Result: "much better and smoother." Remaining tuning: deflated remote-body jitter + verifying budget sync — awaiting playtest. The Photon Fusion switch stays parked unless this still isn't smooth enough ([[Networking Solutions - Comparison]]).
 
+## Update — SMOOTHNESS RESOLVED ✅ (2026-06-04)
+Smoothest 2-PC test in the project's history — physics, sync, and smoothing all clean. The **Photon Fusion migration is DROPPED**: the cheap FishNet fixes worked, exactly as predicted ([[Networking Solutions - Comparison]]). Root cause of the residual stutter (worst when a player was **deflated** moving into the taut hose): spectated players were *predicted* on the client via state forwarding, but the hose force is host-only — so the client's hose-less prediction constantly diverged from the host → reconcile stutter, amplified by the heavy deflated body. The user's "it's the mass" hunch was right.
+
+Fix chain (committed `a98443a`..`655c02a`):
+- **Spectators sync via NetworkTransform, not prediction** — `Enable State Forwarding = OFF` + a server-auth NetworkTransform (Position only, Send To Owner off). The owner still predicts (instant controls); spectators follow the host's real, hose-affected motion. See [[Network Player Controller]] / [[Setup and Gotchas]].
+- **Spectator bodies set kinematic** (in `OnStartClient`, when not owner + not host) so local gravity/collisions stop fighting the synced position — fixed idle drift + sinking through floors.
+- **Hose spring softened** 4→2.5 Hz, damping 0.7→0.9 ([[Network Hose]]).
+- **Air-size desync fixed** — per-tick budget sync + retry-wire ([[Network Air Budget]]).
+- **Own-player sprite floor-dip fixed** — excluded Scale from the prediction graphical smoother + box collider ([[Player Character]]).
+- Added an on-screen [[Performance HUD]] (FPS + tick + RTT) for the perf tests.
+
 ## Next session
-Awaiting the playtest of the smoothness / air-budget fixes. If the deflated remote-body jitter persists → bump NetworkObject `_spectatorInterpolation`. Then codify the manual scene/prefab setup into a `NetworkSpikeSceneBuilder`, and reset **Project Settings → Physics 2D → Simulation Mode → Fixed Update** for local play (see [[Setup and Gotchas]]). See [[Roadmap]].
+📌 Permanently fix the **PlayerTest physics freeze**: the committed `SimulationMode=Script` (FishNet's runtime leak) freezes local non-networked physics, and a plain revert re-leaks. Plan — commit Fixed Update + a small local `Physics2D.Simulate()` driver for non-networked scenes ([[Setup and Gotchas]]). Then codify the manual scene/prefab setup into a `NetworkSpikeSceneBuilder`. See [[Roadmap]].
 
 ## Connections
-[[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Windows Build]] · [[Setup and Gotchas]]
+[[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Performance HUD]] · [[Windows Build]] · [[Setup and Gotchas]]
