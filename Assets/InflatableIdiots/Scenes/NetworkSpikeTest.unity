@@ -182,6 +182,54 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b2267aa75a51624bb500bed61e5bbef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InflatableIdiots.Net.NetworkBootstrap
+--- !u!1 &182760322
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 182760324}
+  - component: {fileID: 182760323}
+  m_Layer: 0
+  m_Name: FPSCounter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &182760323
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 182760322}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14535adb8e06d014bb0fcd1c83292a9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InflatableIdiots.View.FpsCounter
+  corner: 1
+  sampleInterval: 0.5
+  fontSize: 24
+  persistAcrossScenes: 1
+--- !u!4 &182760324
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 182760322}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &256883905
 GameObject:
   m_ObjectHideFlags: 0
@@ -1750,6 +1798,7 @@ MonoBehaviour:
   colorB: {r: 0.6, g: 0.7, b: 0.85, a: 1}
   RenderOnly: 0
   Managed: 0
+  clientSmoothing: 20
 --- !u!114 &4676314280834887336
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1970,3 +2019,4 @@ SceneRoots:
   - {fileID: 1168002137294667887}
   - {fileID: 5716426394142843936}
   - {fileID: 38197875}
+  - {fileID: 182760324}
