@@ -108,6 +108,20 @@ namespace InflatableIdiots.Net
             base.OnStartClient();
             // Only the local owner reads a device; everyone else's PlayerInput stays off.
             input.enabled = base.IsOwner;
+
+            // Pure spectators (not the owner, not the host) no longer predict this player — its transform
+            // is driven by the NetworkTransform (state forwarding is off). Take the body out of local
+            // physics so gravity and collisions can't fight the synced position (was causing idle drift +
+            // sinking through the floor, worst while deflated where gravityScale is high). Left simulated so
+            // Rigidbody2D.position still tracks the transform for the hose ends; kinematic + zeroed velocity
+            // means it never falls or self-moves. The owner keeps a dynamic body for prediction; the host
+            // keeps every body dynamic for authoritative simulation.
+            if (!base.IsOwner && !base.IsServerInitialized)
+            {
+                rb.linearVelocity = Vector2.zero;
+                rb.bodyType = RigidbodyType2D.Kinematic;
+            }
+
             if (!base.IsOwner) return;
 
             moveAction = input.actions.FindAction("Move");
