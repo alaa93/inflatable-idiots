@@ -24,9 +24,17 @@ namespace InflatableIdiots.EditorTools
         const string PlayerSpritePath = "Packages/com.unity.2d.sprite/Editor/ObjectMenuCreation/DefaultAssets/Textures/9-Sliced.png";
         const string GroundSpritePath = "Packages/com.unity.2d.sprite/Editor/ObjectMenuCreation/DefaultAssets/Textures/Square.png";
 
-        [MenuItem("Tools/Inflatable Idiots/Build Test Scene")]
+        [MenuItem("Inflatable Idiots/Build Test Scene", false, 0)]
         public static void Build()
         {
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Build Test Scene",
+                $"This will generate a fresh test scene and save it to:\n{ScenePath}\n\n" +
+                "Any existing scene at that path is overwritten, and your currently open scene is replaced.",
+                "Build",
+                "Cancel");
+            if (!confirmed) return;
+
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
             var inputAsset = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputAssetPath);

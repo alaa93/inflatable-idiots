@@ -16,26 +16,35 @@ namespace InflatableIdiots.EditorTools
         const string ProductName = "InflatableIdiots";
         const string BuildRoot = "Builds";
 
-        [MenuItem("Tools/Inflatable Idiots/Build Windows (x64)")]
+        [MenuItem("Inflatable Idiots/Build Windows (x64)", false, 20)]
         public static void BuildWindows64()
         {
             Build(BuildTarget.StandaloneWindows64, "Windows", $"{ProductName}.exe");
         }
 
         // --- Other desktop targets, stubbed for later. MVP ships Windows only; mobile stays unwired. ---
-        // [MenuItem("Tools/Inflatable Idiots/Build macOS")]
+        // [MenuItem("Inflatable Idiots/Build macOS", false, 21)]
         // public static void BuildMac() => Build(BuildTarget.StandaloneOSX, "macOS", $"{ProductName}.app");
         //
-        // [MenuItem("Tools/Inflatable Idiots/Build Linux (x64)")]
+        // [MenuItem("Inflatable Idiots/Build Linux (x64)", false, 22)]
         // public static void BuildLinux() => Build(BuildTarget.StandaloneLinux64, "Linux", $"{ProductName}.x86_64");
 
         static void Build(BuildTarget target, string platformFolder, string executableName)
         {
+            string destination = Path.Combine(BuildRoot, platformFolder, executableName);
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Build Player",
+                $"Build a {target} player to:\n{destination}\n\n" +
+                "This overwrites any previous build at that path and can take a while.",
+                "Build",
+                "Cancel");
+            if (!confirmed) return;
+
             string[] scenes = EnabledScenes();
             if (scenes.Length == 0)
             {
                 Debug.LogError("[InflatableIdiots] No enabled scenes in Build Settings. " +
-                               "Run Tools → Inflatable Idiots → Build Test Scene first.");
+                               "Run Inflatable Idiots → Build Test Scene first.");
                 return;
             }
 
