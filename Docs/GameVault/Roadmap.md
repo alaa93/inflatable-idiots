@@ -20,8 +20,8 @@ Prove the riskiest 20% before building full netcode:
 3. ✅ **Two-PC test**: two-body sync, [[Network Hose]], [[Network Air Budget]] over real latency (overlay-free Join-by-SteamID)
 4. ✅ **Client-side prediction** (owner) + **NetworkTransform sync for spectators** — predicting spectators replayed them without the host-only hose, so the deflated-body stutter is fixed ([[Network Player Controller]], [[FishNet Netcode]])
 5. ✅ **Smoothness RESOLVED (2026-06-04)** — smoothest 2-PC test yet; Photon Fusion migration **dropped**. Hose spring softened, air-size desync + own-player sprite floor-dip fixed ([[Networking Spike]])
-6. 📌 **Next:** permanently fix the PlayerTest physics freeze (committed Script SimulationMode re-leaks — needs a local `Physics2D.Simulate()` driver; [[Setup and Gotchas]])
-7. 🔲 Codify the manual scene/prefab setup into a `NetworkSpikeSceneBuilder` (like [[Test Scene Builder]])
+6. ✅ **PlayerTest physics freeze fixed (2026-06-04)** — `LocalPhysicsDriver` drives `Physics2D.Simulate()` in non-networked scenes when FishNet's Script mode leaks; project default back to Fixed Update ([[Setup and Gotchas]])
+7. 📌 **Next:** codify the manual scene/prefab setup into a `NetworkSpikeSceneBuilder` (like [[Test Scene Builder]])
 
 ## 🔭 After the spike validates
 - Port the [[Fan Trap]] into the networked flow

@@ -48,8 +48,11 @@ Fix chain (committed `a98443a`..`655c02a`):
 - Added an on-screen [[Performance HUD]] (FPS + tick + RTT) for the perf tests.
 - **Initial-load fix** (`9600d09`): networked players rendered deflated until the air-budget link wired — now default to the even 50% split at load, so both load matching ([[Network Air Budget]]).
 
+## Update — PlayerTest physics freeze fixed ✅ (2026-06-04, `88fec01`)
+The committed `SimulationMode=Script` (FishNet's runtime leak) froze local non-networked physics, and a plain revert re-leaks. Fixed exactly as planned: committed **Fixed Update** as the project default + added a `LocalPhysicsDriver` (`Scripts/Level/`) that drives `Physics2D.Simulate()` in non-networked scenes whenever the mode was left in Script — no-op when a NetworkManager is present (FishNet owns the step) or physics already auto-simulates. Because it keys off the **runtime** mode, `PlayerTest` works even though Unity re-leaks `m_SimulationMode: 2` into the `.asset` after networked play (now just git-hygiene, not a freeze). Wired into [[Test Scene Builder]]. Full write-up in [[Setup and Gotchas]].
+
 ## Next session
-📌 Permanently fix the **PlayerTest physics freeze**: the committed `SimulationMode=Script` (FishNet's runtime leak) freezes local non-networked physics, and a plain revert re-leaks. Plan — commit Fixed Update + a small local `Physics2D.Simulate()` driver for non-networked scenes ([[Setup and Gotchas]]). Then codify the manual scene/prefab setup into a `NetworkSpikeSceneBuilder`. See [[Roadmap]].
+📌 Codify the manual networked scene/prefab setup into a `NetworkSpikeSceneBuilder` (sibling of [[Test Scene Builder]]), then port the [[Fan Trap]] into the networked flow. See [[Roadmap]].
 
 ## Connections
 [[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Performance HUD]] · [[Windows Build]] · [[Setup and Gotchas]]
