@@ -212,9 +212,9 @@ namespace InflatableIdiots.EditorTools
             var rb = go.AddComponent<Rigidbody2D>();
             rb.freezeRotation = true;
 
-            var col = go.AddComponent<CapsuleCollider2D>();
-            col.size = new Vector2(1f, 1f);
-            col.direction = CapsuleDirection2D.Vertical;
+            var col = go.AddComponent<BoxCollider2D>();
+            col.size = new Vector2(0.9f, 0.9f);
+            col.edgeRadius = 0.05f;   // rounded corners so the box slides over ledges instead of snagging
 
             go.AddComponent<InflatableCharacter>();
             var pi = go.GetComponent<PlayerInput>();
