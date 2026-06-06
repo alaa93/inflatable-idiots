@@ -8,6 +8,7 @@
   <img alt="Netcode: FishNet" src="https://img.shields.io/badge/Netcode-FishNet%204.7-1f6feb">
   <img alt="Platform: Steam" src="https://img.shields.io/badge/Platform-Steam-171a21?logo=steam&logoColor=white">
   <img alt="Status: prototype" src="https://img.shields.io/badge/status-playable%20prototype-f59e0b">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
 ---
@@ -99,6 +100,6 @@ The full design and engineering rationale lives in **[`Docs/GameVault/`](Docs/Ga
 - **[Networking Architecture](Docs/GameVault/Networking%20Architecture.md)** — the online plan
 - **[Roadmap](Docs/GameVault/Roadmap.md)** — where it is and what's next
 
----
+## License
 
-<sub>© 2026 — work in progress. Source is shared for reference; not yet licensed for redistribution.</sub>
+First-party code and docs in this repository are released under the **[MIT License](LICENSE)** (© 2026 Ala Abuhadbeh). Third-party packages bundled under `Assets/Third-Party/` (FishNet, FishySteamworks, Steamworks.NET) are © their respective authors and remain under their own licenses.
