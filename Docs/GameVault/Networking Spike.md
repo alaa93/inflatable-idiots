@@ -51,8 +51,12 @@ Fix chain (committed `a98443a`..`655c02a`):
 ## Update — PlayerTest physics freeze fixed ✅ (2026-06-04, `88fec01`)
 The committed `SimulationMode=Script` (FishNet's runtime leak) froze local non-networked physics, and a plain revert re-leaks. Fixed exactly as planned: committed **Fixed Update** as the project default + added a `LocalPhysicsDriver` (`Scripts/Level/`) that drives `Physics2D.Simulate()` in non-networked scenes whenever the mode was left in Script — no-op when a NetworkManager is present (FishNet owns the step) or physics already auto-simulates. Because it keys off the **runtime** mode, `PlayerTest` works even though Unity re-leaks `m_SimulationMode: 2` into the `.asset` after networked play (now just git-hygiene, not a freeze). Wired into [[Test Scene Builder]]. Full write-up in [[Setup and Gotchas]].
 
+## Update — scene builder + Fan Trap run-coordination ✅ (2026-06-06)
+- **`NetworkSpikeSceneBuilder`** (`f9314c5`): one-click rebuild of the networked scene from code (full Fan Trap arena + NetworkManager prefab instance + NetSpike spawner wiring + HUD), the sibling of [[Test Scene Builder]]. Shared arena geometry extracted into `SceneBuildHelpers`. Assembles from the existing prefabs (their FishNet wiring is inspector-only).
+- **Fan Trap run-coordination ported** (`6188373`): the rising hazard now **waits for both players** before climbing, and **restart resets the run IN PLACE** (either player) instead of reloading the scene — a reload dropped the Steam/FishNet session + host GUI. Host-authoritative via a new `NetworkRunController` on the link (SyncVar run-state + restart epoch + either-player ServerRpc). Bug found + fixed in 2-PC testing: [[Goal Zone]]'s win latch survived the in-place restart and blocked replays → cleared on restart. See [[Run Controller]] / [[Setup and Gotchas]].
+
 ## Next session
-📌 Codify the manual networked scene/prefab setup into a `NetworkSpikeSceneBuilder` (sibling of [[Test Scene Builder]]), then port the [[Fan Trap]] into the networked flow. See [[Roadmap]].
+📌 Finish the [[Fan Trap]] netcode port: authoritative hazard *position* sync (each machine runs its own hazard; re-syncs only on restart) + lock controls on the end screen. Then [[Voice Chat - Dissonance]]. See [[Roadmap]].
 
 ## Connections
 [[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Performance HUD]] · [[Windows Build]] · [[Setup and Gotchas]]
