@@ -40,7 +40,7 @@ Reuses the exact proven seam from the [[Networking Spike]]:
 
 ## Build / run
 Menu: **Inflatable Idiots → Build Playtest - Local** and **Build Playtest - Net** (code-driven, like [[Test Scene Builder]] / `NetworkSpikeSceneBuilder`). Headless entries `PlaytestSceneBuilder.BuildBothBatch` + `BuildWindows.BuildWindows64Batch`.
-- **Local** (`PlaytestLocal.unity`): keyboard 2P (P1 WASD/LCtrl/LShift, P2 Arrows/RCtrl/RShift). The fast solo-iteration scene — use it first to tune puzzle solvability/feel.
+- **Local** (`PlaytestLocal.unity`): keyboard 2P (P1 WASD/LCtrl/LShift, P2 Arrows/RCtrl/RShift). The fast solo-iteration scene — use it first to tune puzzle solvability/feel. Enabled in Build Settings (index 1) so R-restart reloads it; `PlaytestNet` is index 0 / startup.
 - **Net** (`PlaytestNet.unity`, startup scene): Play → Host on one PC, Join-by-ID on the other (see [[Network Spawner]] / [[Setup and Gotchas]]). Or run the standalone in `Builds/Windows`.
 - **L** toggles the lava (host/local).
 
@@ -51,6 +51,7 @@ Menu: **Inflatable Idiots → Build Playtest - Local** and **Build Playtest - Ne
 ## Tuning knobs (first-pass coordinates — expect to move them)
 - Dual-switch & climax gates are `latchOncePermanently` for guaranteed traversal; flip to `latchSeconds` to restore the who-holds-the-door tension.
 - Lift fan force/cap, hose slack vs vertical separations, hatch-gap alignment after ascents, chamber heights — all in `PlaytestLayout`.
+- **Jump speeds:** the net `NetworkPlayer` prefab was tuned to **12/28** (deflated/inflated; inflated apex is huge but ceiling-capped). ⚠️ The LOCAL scene's code-built players still use `InflatableCharacter` defaults **4/10**, so local-vs-net jump feel differs — left unsynced by choice (2026-06-06).
 
 ## Connections
 [[Fan Trap]] · [[Fan Zone]] · [[Run Controller]] · [[Goal Zone]] · [[Rising Hazard]] · [[Network Player Controller]] · [[Networking Spike]] · [[Air-Share Mechanic]] · [[Inflation State]] · [[Roadmap]]
