@@ -35,5 +35,16 @@ namespace InflatableIdiots.Level
             var player = other.GetComponentInParent<InflatableCharacter>();
             if (player != null) inside.Remove(player);
         }
+
+        /// <summary>
+        /// Clear tracked occupants + the win latch. Used by the in-place networked restart, which doesn't
+        /// reload the scene — so without this the previous session's <c>reported</c> latch permanently blocks
+        /// a new win, and a teleport-out (which may not fire OnTriggerExit2D) could leave stale occupants.
+        /// </summary>
+        public void ResetForRestart()
+        {
+            inside.Clear();
+            reported = false;
+        }
     }
 }

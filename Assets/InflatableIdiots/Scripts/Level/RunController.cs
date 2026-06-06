@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using InflatableIdiots.Hazards;
 using InflatableIdiots.Player;
 
 namespace InflatableIdiots.Level
@@ -9,8 +10,18 @@ namespace InflatableIdiots.Level
 
     /// <summary>
     /// Owns the win/lose state for a single run. GoalZone reports a win; RisingHazard reports a loss.
-    /// On either, it freezes the whole scene via Time.timeScale = 0 — which stops the rising hazard AND
-    /// the players' controls in one stroke — and shows the end banner. R restarts the scene at ANY time.
+    ///
+    /// The run doesn't begin until <see cref="RequiredPlayers"/> players are present (<see cref="RunStarted"/>).
+    /// Locally both players exist at scene load, so it starts on the first frame — unchanged. In the networked
+    /// scene players spawn over time, so this holds the rising hazard until BOTH have joined (otherwise the
+    /// lone host would be caught before its partner connects). Each machine gates independently off the player
+    /// count it can see, so no replication is needed for the start gate.
+    ///
+    /// LOCAL play: on win/lose it freezes the scene (Time.timeScale = 0, stopping the hazard AND controls) and
+    /// R reloads the scene. NETWORKED play: an <see cref="IRunNetwork"/> attaches when the link spawns — run
+    /// state then comes from the host (mirrored, so banners agree) and R resets the run IN PLACE through the
+    /// network instead of reloading (a reload would drop the Steam/FishNet session + the host's join GUI). No
+    /// timeScale freeze when networked (it would stall FishNet's tick); the hazard simply stops on IsOver.
     ///
     /// Also tracks altitude: the peak height any player reaches above the start, shown live during play
     /// and frozen as "Altitude reached: X m" on the end screen. Placeholder OnGUI UI for now.
@@ -18,20 +29,32 @@ namespace InflatableIdiots.Level
     public class RunController : MonoBehaviour
     {
         public static RunController Instance { get; private set; }
-        public RunState State { get; private set; }
+
+        // Authoritative run state comes from the network when attached (so every peer agrees), else local.
+        RunState localState = RunState.Playing;
+        IRunNetwork net;
+        public RunState State => net != null ? net.State : localState;
         public bool IsOver => State != RunState.Playing;
         public float Altitude => maxAltitude;
+
+        // True once the run has begun (enough players present). The rising hazard only climbs while this is set.
+        public bool RunStarted { get; private set; }
+
+        [Tooltip("Players that must be present before the run starts (and the hazard begins to rise).")]
+        [SerializeField] int requiredPlayers = 2;
+        public int RequiredPlayers => requiredPlayers;
 
         InflatableCharacter[] players;
         float baselineY;
         float maxAltitude;
+        float nextPlayerScan;   // throttle the pre-start player scan (joining can take a while)
 
         GUIStyle bannerStyle, subtitleStyle, hintStyle, readoutStyle;
 
         void Awake()
         {
             Instance = this;
-            State = RunState.Playing;
+            localState = RunState.Playing;
             Time.timeScale = 1f; // a reloaded scene always starts running, even if we froze before restarting
         }
 
@@ -42,31 +65,67 @@ namespace InflatableIdiots.Level
 
         void Start()
         {
-            // Players exist by Start (created active by the builder). Baseline at the spawn height, so
-            // altitude reads ~0 at the bottom and grows as they climb.
-            players = FindObjectsByType<InflatableCharacter>(FindObjectsSortMode.None);
-            baselineY = HighestPlayerY();
-            maxAltitude = 0f;
+            // Try to start immediately — locally both players exist by now, so the run begins on frame one.
+            // In the networked scene this finds nobody yet and TryStartRun keeps polling in Update.
+            RefreshPlayers();
+            TryStartRun();
+        }
+
+        /// <summary>Networked run coordinator attaches itself here (called when the link spawns).</summary>
+        public void AttachNetwork(IRunNetwork network)
+        {
+            net = network;
+            net.Restarted += OnNetworkRestarted;
+        }
+
+        public void DetachNetwork(IRunNetwork network)
+        {
+            if (net != network) return;
+            net.Restarted -= OnNetworkRestarted;
+            net = null;
         }
 
         public void ReportWin()
         {
-            if (State != RunState.Playing) return;
-            State = RunState.Won;
+            if (!RunStarted || State != RunState.Playing) return;
+            if (net != null)
+            {
+                if (net.IsServer) net.ServerSetState(RunState.Won); // host authority; clients mirror the SyncVar
+                return;
+            }
+            localState = RunState.Won;
             Time.timeScale = 0f;
             Debug.Log($"[InflatableIdiots] Run won — both players reached the goal. Altitude {maxAltitude:F1} m.");
         }
 
         public void ReportLoss()
         {
-            if (State != RunState.Playing) return;
-            State = RunState.Lost;
+            if (!RunStarted || State != RunState.Playing) return;
+            if (net != null)
+            {
+                if (net.IsServer) net.ServerSetState(RunState.Lost);
+                return;
+            }
+            localState = RunState.Lost;
             Time.timeScale = 0f;
             Debug.Log($"[InflatableIdiots] Run lost — a player touched the rising hazard. Altitude {maxAltitude:F1} m.");
         }
 
         void Update()
         {
+            if (!RunStarted)
+            {
+                // Wait for everyone to join before the run (and the hazard) starts. Throttled — the wait can
+                // last as long as it takes a friend to connect. Uses unscaled time so it ticks even if frozen.
+                if (Time.unscaledTime >= nextPlayerScan)
+                {
+                    nextPlayerScan = Time.unscaledTime + 0.25f;
+                    RefreshPlayers();
+                    TryStartRun();
+                }
+                return;
+            }
+
             // Track peak altitude while the run is live (frozen once it ends).
             if (State == RunState.Playing)
                 maxAltitude = Mathf.Max(maxAltitude, HighestPlayerY() - baselineY);
@@ -75,6 +134,22 @@ namespace InflatableIdiots.Level
             // Input System processes input regardless of timeScale.
             if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
                 Restart();
+        }
+
+        void RefreshPlayers()
+        {
+            players = FindObjectsByType<InflatableCharacter>(FindObjectsSortMode.None);
+        }
+
+        void TryStartRun()
+        {
+            if (RunStarted) return;
+            if (players == null || players.Length < requiredPlayers) return;
+
+            RunStarted = true;
+            // Baseline at the spawn height, so altitude reads ~0 at the bottom and grows as they climb.
+            baselineY = HighestPlayerY();
+            maxAltitude = 0f;
         }
 
         float HighestPlayerY()
@@ -88,6 +163,14 @@ namespace InflatableIdiots.Level
 
         void Restart()
         {
+            // Networked: reset the run IN PLACE (either player) — reloading would drop the session + host GUI.
+            if (net != null)
+            {
+                net.RequestRestart();
+                return;
+            }
+
+            // Local: reload the scene (resets everything for free).
             Time.timeScale = 1f; // LoadScene doesn't reset timeScale; do it before reloading
             int idx = SceneManager.GetActiveScene().buildIndex;
             if (idx >= 0)
@@ -96,9 +179,29 @@ namespace InflatableIdiots.Level
                 Debug.LogWarning("[InflatableIdiots] Active scene isn't in Build Settings; can't reload. Re-run Build Test Scene.");
         }
 
+        // Networked restart broadcast: the host already reset players + budget + state; each peer resets its
+        // own local rising hazard here and re-baselines altitude. RunStarted stays true (nobody left).
+        void OnNetworkRestarted()
+        {
+            foreach (var hazard in FindObjectsByType<RisingHazard>(FindObjectsSortMode.None))
+                hazard.ResetToStart();
+            // Clear the goal's win latch + tracked occupants, else last session's win blocks a new one.
+            foreach (var goal in FindObjectsByType<GoalZone>(FindObjectsSortMode.None))
+                goal.ResetForRestart();
+            RefreshPlayers();
+            baselineY = HighestPlayerY();
+            maxAltitude = 0f;
+        }
+
         void OnGUI()
         {
             EnsureStyles();
+
+            if (!RunStarted)
+            {
+                GUI.Label(new Rect(0f, Screen.height * 0.4f, Screen.width, 52f), "Waiting for both players…", hintStyle);
+                return;
+            }
 
             // Live altitude readout (top-left) while the run is live.
             if (State == RunState.Playing)

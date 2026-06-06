@@ -69,6 +69,13 @@ namespace InflatableIdiots.Net
 
         float BudgetForSlot(int slot) => slot == 0 ? _p1Budget.Value : 1f - _p1Budget.Value;
 
+        /// <summary>Server-only: reset the zero-sum budget to the even split (used by an in-place restart).</summary>
+        public void ResetServer()
+        {
+            if (!base.IsServerInitialized) return;
+            _p1Budget.Value = 0.5f;
+        }
+
         void FixedUpdate()
         {
             if (!base.IsServerInitialized) return;

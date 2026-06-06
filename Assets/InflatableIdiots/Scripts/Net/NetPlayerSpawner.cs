@@ -77,9 +77,37 @@ namespace InflatableIdiots.Net
 
             linkGo.GetComponent<NetworkHose>().SetEndpointsServer(
                 players[0].GetComponent<Rigidbody2D>(), players[1].GetComponent<Rigidbody2D>());
-            linkGo.GetComponent<NetworkAirBudget>().SetControllersServer(players[0], players[1]);
+            var airBudget = linkGo.GetComponent<NetworkAirBudget>();
+            airBudget.SetControllersServer(players[0], players[1]);
+
+            // Run coordination (host-authoritative win/lose state + in-place restart). Optional component on the
+            // link prefab; without it the networked scene falls back to RunController's scene-reload restart,
+            // which drops the Steam/FishNet session.
+            var run = linkGo.GetComponent<NetworkRunController>();
+            if (run != null) run.ConfigureServer(this, airBudget);
+            else Debug.LogWarning("[Spike] NetworkLink prefab has no NetworkRunController — add it for in-place " +
+                                  "networked restart; restart currently falls back to a scene reload.");
 
             networkManager.ServerManager.Spawn(linkGo);   // server-owned; clients already in the default scene observe it
+        }
+
+        /// <summary>
+        /// Server-only: send both tracked players back to their spawn points with zero velocity. Driven by
+        /// <see cref="NetworkRunController"/> on an in-place restart; the moves are authoritative and propagate
+        /// to clients via reconcile (owner) / NetworkTransform (spectator).
+        /// </summary>
+        public void ServerResetPlayers()
+        {
+            foreach (var ctrl in players)
+            {
+                if (ctrl == null) continue;
+                int slot = Mathf.Clamp(ctrl.SlotValue, 0, spawnPoints.Length - 1);
+                var rb = ctrl.GetComponent<Rigidbody2D>();
+                if (rb == null) continue;
+                rb.linearVelocity = Vector2.zero;
+                rb.angularVelocity = 0f;
+                rb.position = spawnPoints[slot];
+            }
         }
     }
 }
