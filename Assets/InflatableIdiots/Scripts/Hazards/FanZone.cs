@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using InflatableIdiots.Player;
 
 namespace InflatableIdiots.Hazards
 {
@@ -13,6 +14,13 @@ namespace InflatableIdiots.Hazards
     /// (mass 3 * gravityScale 2.5) barely feels it and stays anchored. The hose then tethers the floating
     /// "kite" to the grounded "anchor" — the GDD's hose-as-kite moment. Tune the float threshold via `force`:
     /// a body lifts when force > mass * gravityScale * |Physics2D.gravity|.
+    ///
+    /// NETWORKED play: a predicted player body (<see cref="InflatableCharacter.SimulatePhysics"/> == false)
+    /// is NOT pushed from this FixedUpdate — a raw AddForce outside FishNet's [Replicate] wouldn't be replayed
+    /// during reconcile, so the owner's prediction would diverge from the host every tick in the column (the
+    /// same class of stutter the host-only hose caused). Instead each player's NetworkInflatableController
+    /// samples <see cref="SampleForce"/> inside its predicted tick and queues the force on its
+    /// PredictionRigidbody2D. Locally-simulated bodies keep the direct FixedUpdate push below unchanged.
     /// </summary>
     [RequireComponent(typeof(Collider2D))]
     public class FanZone : MonoBehaviour
@@ -26,19 +34,50 @@ namespace InflatableIdiots.Hazards
                  "body gets carried up steadily instead of flung out the top.")]
         [SerializeField] float maxRiseSpeed = 4f;
 
+        /// <summary>Every enabled fan zone, so a predicted player can sample them each tick without a scene scan.</summary>
+        public static readonly List<FanZone> All = new List<FanZone>();
+
         readonly HashSet<Rigidbody2D> bodies = new HashSet<Rigidbody2D>();
         Vector2 dir = Vector2.up;
+        Collider2D zone;
 
-        void Awake() => RecomputeDir();
+        void Awake()
+        {
+            zone = GetComponent<Collider2D>();
+            RecomputeDir();
+        }
         void OnValidate() => RecomputeDir();
         void RecomputeDir() => dir = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector2.up;
+
+        void OnEnable() => All.Add(this);
+        void OnDisable() => All.Remove(this);
+
+        /// <summary>
+        /// The updraft force this zone exerts on a body at <paramref name="position"/> moving at
+        /// <paramref name="velocity"/> this tick — or zero if the point is outside the column or already rising
+        /// at the <see cref="maxRiseSpeed"/> cap. A pure function of the passed state (no trigger membership),
+        /// so a networked player can apply it inside its predicted tick and have reconcile replay it
+        /// deterministically. Membership is a center-point test, a hair tighter than the FixedUpdate path's
+        /// full-collider overlap — negligible for a wide column.
+        /// </summary>
+        public Vector2 SampleForce(Vector2 position, Vector2 velocity)
+        {
+            if (zone == null || !zone.OverlapPoint(position)) return Vector2.zero;
+            if (Vector2.Dot(velocity, dir) >= maxRiseSpeed) return Vector2.zero;
+            return dir * force;
+        }
 
         void OnTriggerEnter2D(Collider2D other)
         {
             // Only push dynamic bodies. Static geometry has no attached body; the kinematic rising hazard
             // would ignore forces anyway, so skip it rather than tracking it pointlessly.
             var rb = other.attachedRigidbody;
-            if (rb != null && rb.bodyType == RigidbodyType2D.Dynamic) bodies.Add(rb);
+            if (rb == null || rb.bodyType != RigidbodyType2D.Dynamic) return;
+            // A networked predicted player drives its own physics through the prediction tick and pulls the
+            // fan force via SampleForce there; pushing it from FixedUpdate too would double-apply + desync.
+            var character = rb.GetComponent<InflatableCharacter>();
+            if (character != null && !character.SimulatePhysics) return;
+            bodies.Add(rb);
         }
 
         void OnTriggerExit2D(Collider2D other)

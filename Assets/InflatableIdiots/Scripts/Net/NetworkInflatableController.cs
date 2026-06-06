@@ -6,6 +6,7 @@ using FishNet.Transporting;
 using FishNet.Utility.Template;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using InflatableIdiots.Hazards;
 using InflatableIdiots.Level;
 using InflatableIdiots.Player;
 
@@ -175,15 +176,34 @@ namespace InflatableIdiots.Net
             // (caught/solved). Zeroing here — identically on the predicting owner and the authoritative server —
             // keeps them in agreement so there's no reconcile fight; gravity still settles the body, only
             // walk/jump/air-transfer input is cut. (Local play freezes via timeScale instead; see RunController.)
-            if (RunController.Instance != null && RunController.Instance.ControlsLocked)
-                rd = new ReplicateData(Vector2.zero, false, 0f);
+            bool locked = RunController.Instance != null && RunController.Instance.ControlsLocked;
+            if (locked) rd = new ReplicateData(Vector2.zero, false, 0f);
 
             // Trigger feeds the server-authoritative zero-sum air budget (read in NetworkAirBudget).
             character.SetTrigger(rd.Trigger);
             // Ground check + walk + jump + inflation state, on the rigidbody. Re-runs verbatim during replays.
             character.Tick(rd.Move, rd.Jump);
-            // Flush any queued forces (none here — movement is velocity-based); FishNet then steps Physics2D.
+            // Environmental forces (fan updraft) must be applied INSIDE the predicted tick, through the
+            // prediction rigidbody, so reconcile replays them — a raw AddForce in FanZone.FixedUpdate would
+            // desync the owner from the host. Suppressed while locked, matching local play's timeScale freeze.
+            if (!locked) ApplyEnvironmentForces();
+            // Flush queued forces (fan updraft + any future ones); FishNet then steps Physics2D.
             _prb.Simulate();
+        }
+
+        // Queue the environmental forces acting on this body this tick (currently fan updrafts) onto the
+        // prediction rigidbody. Position/velocity are read post-movement, pre-step — the body's state entering
+        // the physics step — and the force is a pure function of them, so each reconcile replay reproduces it.
+        void ApplyEnvironmentForces()
+        {
+            Vector2 pos = rb.position;
+            Vector2 vel = rb.linearVelocity;
+            var fans = FanZone.All;
+            for (int i = 0; i < fans.Count; i++)
+            {
+                Vector2 f = fans[i].SampleForce(pos, vel);
+                if (f != Vector2.zero) _prb.AddForce(f);
+            }
         }
 
         [Reconcile]
