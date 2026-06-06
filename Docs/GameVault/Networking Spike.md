@@ -62,8 +62,18 @@ Polish closing the two gaps the run-coordination commit (`6188373`) left:
 
 Awaiting a 2-PC re-test (hazard reads identically on both screens through a full climb + restart; neither player can move before both join / after caught-or-solved).
 
+## Update — Fan Zone force over netcode ✅ (2026-06-06)
+The last open Fan Trap netcode piece. The updraft used a raw `AddForce` in `FanZone.FixedUpdate` — fine locally, but for a **predicted** player body that force is outside FishNet's `[Replicate]`, so reconcile wouldn't replay it and the owner would diverge from the host every tick in the column (the host-only-hose stutter pattern). Now:
+- `FanZone` skips predicted players in FixedUpdate (`InflatableCharacter.SimulatePhysics == false`) and exposes `SampleForce(pos, vel)` + a static `FanZone.All` registry.
+- [[Network Player Controller]] samples the fan inside `PerformReplicate` and queues it on its `PredictionRigidbody2D` (`AddForce` → `Simulate`), so it's part of replicate/reconcile. Spectators inherit it via the host's NetworkTransform position. Suppressed while controls are locked.
+
+This completes the **full Fan Trap loop over netcode**. ✅ **2-PC validated (2026-06-06)** — the owner rides the updraft into the taut hose smoothly, no reconcile stutter; hazard height sync + off-run control lock confirmed in the same pass.
+
+## Spike outcome
+✅ **The networking spike is validated end-to-end.** Steam/SDR connect, prediction, hose, zero-sum air-share, and now the complete Fan Trap loop (start-gate, host-authoritative hazard, control lock, fan updraft) all run smoothly across two PCs. The riskiest 20% is proven — online co-op for [[Inflatable Idiots]] is feasible on the chosen stack.
+
 ## Next session
-📌 2-PC re-test the hazard sync + control lock, then the last open Fan Trap netcode item — **[[Fan Zone]] updraft force authority** (each machine's FanZone pushes its local dynamic bodies; validate the owner's predicted fan force reconciles cleanly vs the host, spectators follow kinematic via NetworkTransform). Then [[Voice Chat - Dissonance]] + real UI. See [[Roadmap]].
+📌 Beyond the spike: [[Voice Chat - Dissonance]] (the "GIVE ME 40%" moment over the wire) + real UI to replace the OnGUI placeholders in [[Run Controller]]. See [[Roadmap]].
 
 ## Connections
 [[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Performance HUD]] · [[Windows Build]] · [[Setup and Gotchas]]
