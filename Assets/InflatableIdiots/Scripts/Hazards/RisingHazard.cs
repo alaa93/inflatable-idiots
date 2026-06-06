@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using InflatableIdiots.Level;
 using InflatableIdiots.Player;
 
@@ -18,8 +19,19 @@ namespace InflatableIdiots.Hazards
     [RequireComponent(typeof(Collider2D))]
     public class RisingHazard : MonoBehaviour
     {
-        [Tooltip("Constant rise speed in units/second.")]
-        [SerializeField] float speed = 0.1f;
+        [Tooltip("Rise speed (units/sec) while a player is inside a puzzle station — the hazard relents so the " +
+                 "puzzle is fair.")]
+        [SerializeField] float speed = 0.12f;
+        [Tooltip("Faster rise speed (units/sec) in the transitions BETWEEN stations (nobody in a StationZone) — " +
+                 "the chase that makes the climb tense.")]
+        [SerializeField] float transitionSpeed = 0.5f;
+
+        /// <summary>
+        /// Debug toggle (default ON = lava active). Flip with the L key to switch the hazard off for calm puzzle
+        /// iteration, then back on for the pressure pass. Host/local-only: a pure client mirrors the host's
+        /// height, so toggling it there does nothing (the host is the authority that climbs and decides "caught").
+        /// </summary>
+        public static bool Disabled;
 
         Rigidbody2D rb;
         Vector2 startPosition;
@@ -51,9 +63,21 @@ namespace InflatableIdiots.Hazards
             // Host / local: hold at the start until the run begins (networked: both players joined), and stop
             // once it's over (the timeScale freeze already halts us locally; this also covers a win).
             if (!run.RunStarted || run.IsOver) return;
-            Vector2 next = rb.position + Vector2.up * speed * Time.fixedDeltaTime;
+            // Lava switched off for calm puzzle iteration: hold position, but keep publishing so a client mirrors
+            // the freeze instead of drifting off the last value.
+            if (Disabled) { run.PublishHazardHeight(rb.position.y); return; }
+            // Relent while a player is solving inside a station; chase faster in the transitions between them.
+            float spd = StationZone.AnyOccupied ? speed : transitionSpeed;
+            Vector2 next = rb.position + Vector2.up * spd * Time.fixedDeltaTime;
             rb.MovePosition(next);
             run.PublishHazardHeight(next.y); // host → clients (no-op locally); publish the commanded target
+        }
+
+        void Update()
+        {
+            // Debug: L toggles the lava on/off for testing (host/local authority; harmless on a pure client).
+            if (Keyboard.current != null && Keyboard.current.lKey.wasPressedThisFrame)
+                Disabled = !Disabled;
         }
 
         void OnTriggerEnter2D(Collider2D other)

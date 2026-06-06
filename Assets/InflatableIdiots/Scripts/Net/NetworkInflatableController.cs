@@ -80,6 +80,9 @@ namespace InflatableIdiots.Net
         InputAction moveAction, jumpAction, triggerAction;
         readonly PredictionRigidbody2D _prb = new PredictionRigidbody2D();
         bool jumpEdge;   // owner-only: latch a jump press between ticks
+        SpriteRenderer sprite;
+        static readonly Color HostColor = new Color(0.40f, 0.60f, 1.00f);   // slot 0 = host  = blue
+        static readonly Color ClientColor = new Color(1.00f, 0.50f, 0.40f); // slot 1 = client = red
 
         public InflatableCharacter Character => character;
 
@@ -88,6 +91,7 @@ namespace InflatableIdiots.Net
             character = GetComponent<InflatableCharacter>();
             rb = GetComponent<Rigidbody2D>();
             input = GetComponent<PlayerInput>();
+            sprite = GetComponentInChildren<SpriteRenderer>(true); // body sprite (on the Graphical Object child)
             // The controller is the single canonical input path; silence InflatableCharacter's local
             // SendMessages callbacks and its FixedUpdate movement (movement now runs in the predicted Tick).
             character.IgnoreLocalInputCallbacks = true;
@@ -103,6 +107,25 @@ namespace InflatableIdiots.Net
             base.OnStartNetwork();
             // Rigidbody prediction needs both the tick (replicate) and post-tick (reconcile) callbacks.
             SetTickCallbacks(TickCallback.Tick | TickCallback.PostTick);
+            // Tint by role so the two idiots are visually distinct online; slot is a SyncVar, so every peer
+            // agrees who's blue (host) and who's red (client). Re-apply on change in case the slot syncs late.
+            _slot.OnChange += OnSlotChanged;
+            ApplyRoleColor();
+        }
+
+        public override void OnStopNetwork()
+        {
+            base.OnStopNetwork();
+            _slot.OnChange -= OnSlotChanged;
+        }
+
+        // slot 0 = host = blue, slot 1 = client = red. Local play colors players in the scene builder instead;
+        // this only runs on networked player objects.
+        void OnSlotChanged(int prev, int next, bool asServer) => ApplyRoleColor();
+
+        void ApplyRoleColor()
+        {
+            if (sprite != null) sprite.color = SlotValue == 0 ? HostColor : ClientColor;
         }
 
         public override void OnStartClient()

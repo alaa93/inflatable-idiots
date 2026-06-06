@@ -27,6 +27,7 @@ Prove the riskiest 20% before building full netcode:
 
 ## 🔭 After the spike validates
 - ✅ **[[Fan Trap]] netcode port complete — 2-PC validated (2026-06-06):** hazard sync, off-run control lock (item 8) + [[Fan Zone]] force (item 9). The full loop now runs online. **The spike is validated end-to-end.**
+- 🟡 **[[Ascent Playtest]] BUILT (graybox, 2026-06-06) — awaiting 2-PC validation:** the first full co-op puzzle ladder (tutorial → vertical climb → dual-switch → elevator → kite+anchor → climax → goal), netcode via a host-authoritative puzzle-flag bitmask folded into the `IRunNetwork` seam (zero new NetworkObjects). Compiles + both scenes generate + standalone builds; gameplay/solvability/tuning need a live test. This is the decision gate: real UI/art/level-design vs. doubling down on mechanics.
 - [[Voice Chat - Dissonance]] (the "GIVE ME 40%" moment over the wire)
 - Real UI (replace the OnGUI placeholders in [[Run Controller]])
 - Revisit [[Decision - 2P now 4P later]] and [[Parked Ideas]] only after online co-op is proven

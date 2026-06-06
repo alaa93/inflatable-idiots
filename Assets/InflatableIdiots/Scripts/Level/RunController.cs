@@ -114,6 +114,39 @@ namespace InflatableIdiots.Level
             if (net != null && net.IsServer) net.ServerPublishHazardHeight(y);
         }
 
+        // --- Co-op puzzle flags (switches / plates / gates / gated fans) ---
+        // The authority (the host when networked, or the single machine in local play) owns the truth: producers
+        // (ZoneSensor, FlagGate) write bits here each FixedUpdate; in networked play FixedUpdate then publishes
+        // the whole mask through IRunNetwork so clients mirror it. Consumers (FlagGate colliders, gated FanZones,
+        // visuals) read GetPuzzleFlag on every machine. IDs are 0..63 — see PuzzleFlags for the allocation.
+        ulong localPuzzleFlags;
+
+        /// <summary>True on the machine that decides puzzle state: the host when networked, or always in local play.</summary>
+        public bool PuzzleAuthority => net == null || net.IsServer;
+
+        /// <summary>Authority-only: set or clear puzzle flag <paramref name="id"/> (0..63). No-op off the authority.</summary>
+        public void SetPuzzleFlag(int id, bool value)
+        {
+            if (!PuzzleAuthority || (uint)id > 63u) return;
+            ulong bit = 1UL << id;
+            if (value) localPuzzleFlags |= bit;
+            else localPuzzleFlags &= ~bit;
+        }
+
+        /// <summary>Read puzzle flag <paramref name="id"/> on any peer: the authority's own bits, else the synced mask.</summary>
+        public bool GetPuzzleFlag(int id)
+        {
+            if ((uint)id > 63u) return false;
+            ulong mask = PuzzleAuthority ? localPuzzleFlags : net.PuzzleFlags;
+            return (mask & (1UL << id)) != 0UL;
+        }
+
+        void FixedUpdate()
+        {
+            // Host: replicate the authoritative puzzle mask to clients each tick (the SyncVar only sends on change).
+            if (net != null && net.IsServer) net.ServerSetPuzzleFlags(localPuzzleFlags);
+        }
+
         public void ReportWin()
         {
             if (!RunStarted || State != RunState.Playing) return;
@@ -217,6 +250,10 @@ namespace InflatableIdiots.Level
             // Clear the goal's win latch + tracked occupants, else last session's win blocks a new one.
             foreach (var goal in FindObjectsByType<GoalZone>(FindObjectsSortMode.None))
                 goal.ResetForRestart();
+            // Clear puzzle state + any permanently-latched gates so the re-climb starts from a clean board.
+            localPuzzleFlags = 0;
+            foreach (var gate in FindObjectsByType<FlagGate>(FindObjectsSortMode.None))
+                gate.ResetForRestart();
             RefreshPlayers();
             baselineY = HighestPlayerY();
             maxAltitude = 0f;

@@ -35,6 +35,9 @@ namespace InflatableIdiots.Net
         // NaN means "not published yet" → clients pin the hazard at its authored start until the host's first
         // value arrives (also reset to NaN on restart so a stale high value can't flash before the re-climb).
         readonly SyncVar<float> _hazardHeight = new SyncVar<float>(float.NaN, new SyncTypeSettings(0f));
+        // Host-authoritative co-op puzzle flags (switches / plates / gates / gated fans). Sync every tick like
+        // the hazard height so a gate opening or a lift kicking in feels immediate rather than lagging 10 Hz.
+        readonly SyncVar<ulong> _puzzleFlags = new SyncVar<ulong>(0, new SyncTypeSettings(0f));
 
         // Server-only refs, handed in by NetPlayerSpawner before Spawn.
         NetPlayerSpawner spawner;
@@ -43,6 +46,7 @@ namespace InflatableIdiots.Net
         public bool IsServer => base.IsServerInitialized;
         public RunState State => _state.Value;
         public float HazardHeight => _hazardHeight.Value;
+        public ulong PuzzleFlags => _puzzleFlags.Value;
         public event System.Action Restarted;
 
         /// <summary>Server-only: wire the references needed to perform a reset.</summary>
@@ -89,6 +93,13 @@ namespace InflatableIdiots.Net
             _hazardHeight.Value = y;
         }
 
+        // IRunNetwork — host publishes the authoritative puzzle-flag bitmask; clients mirror it.
+        public void ServerSetPuzzleFlags(ulong flags)
+        {
+            if (!base.IsServerInitialized) return;
+            _puzzleFlags.Value = flags;
+        }
+
         // IRunNetwork — either player asks to restart.
         public void RequestRestart()
         {
@@ -111,6 +122,7 @@ namespace InflatableIdiots.Net
             // Mark the hazard "unpublished" so clients pin to the authored start until the host's next
             // FixedUpdate republishes the climbing height — no stale high value flashes during the reset.
             _hazardHeight.Value = float.NaN;
+            _puzzleFlags.Value = 0; // clear all switches/plates/gates so the re-climb starts from a clean board
             _restartEpoch.Value++; // → OnRestartEpochChanged on every peer → each resets its local hazard
         }
     }

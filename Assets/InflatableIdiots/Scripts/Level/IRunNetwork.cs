@@ -29,6 +29,16 @@ namespace InflatableIdiots.Level
         /// <summary>Host-only: replicate the rising hazard's current height to clients (ignored on clients).</summary>
         void ServerPublishHazardHeight(float y);
 
+        /// <summary>
+        /// Host-authoritative bitmask of co-op puzzle flags (switch held, plate pressed, gate open, lift active…),
+        /// synced to every peer so gates, visuals, and gated fans agree across machines. See
+        /// <see cref="RunController.GetPuzzleFlag"/>.
+        /// </summary>
+        ulong PuzzleFlags { get; }
+
+        /// <summary>Host-only: publish the authoritative puzzle-flag bitmask to clients (ignored on clients).</summary>
+        void ServerSetPuzzleFlags(ulong flags);
+
         /// <summary>Either player: ask the host to reset the run in place (no scene reload).</summary>
         void RequestRestart();
 

@@ -163,8 +163,8 @@ MonoBehaviour:
   scaleInflated: 2.5
   scaleDeflated: 0.6
   walkSpeed: 6
-  jumpSpeedDeflated: 4
-  jumpSpeedInflated: 10
+  jumpSpeedDeflated: 12
+  jumpSpeedInflated: 28
   groundLayers:
     serializedVersion: 2
     m_Bits: 256

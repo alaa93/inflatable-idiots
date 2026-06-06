@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using InflatableIdiots.Player;
+using InflatableIdiots.Level;
 
 namespace InflatableIdiots.Hazards
 {
@@ -33,6 +34,10 @@ namespace InflatableIdiots.Hazards
         [Tooltip("Stop adding force once the body already moves this fast (m/s) along `direction`, so a light " +
                  "body gets carried up steadily instead of flung out the top.")]
         [SerializeField] float maxRiseSpeed = 4f;
+        [Tooltip("Optional gate: -1 = always on (the tutorial fan). Otherwise this updraft only blows while the " +
+                 "named puzzle flag is set on the host-authoritative RunController board — e.g. a weight-plate " +
+                 "pressed (powered fan), or both players standing in the column (the co-op lift).")]
+        [SerializeField] int activationFlag = -1;
 
         /// <summary>Every enabled fan zone, so a predicted player can sample them each tick without a scene scan.</summary>
         public static readonly List<FanZone> All = new List<FanZone>();
@@ -53,6 +58,24 @@ namespace InflatableIdiots.Hazards
         void OnDisable() => All.Remove(this);
 
         /// <summary>
+        /// Whether this updraft is currently blowing. Gated fans read the host-authoritative puzzle board, so
+        /// the host and the predicting owner see the same answer each tick — keeping the sampled force
+        /// reconcile-safe. -1 flag = always on.
+        /// </summary>
+        bool IsActive => activationFlag < 0 ||
+                         (RunController.Instance != null && RunController.Instance.GetPuzzleFlag(activationFlag));
+
+        /// <summary>Editor builder hook: set the updraft's strength, speed cap, direction and optional gate flag.</summary>
+        public void Configure(float newForce, float newMaxRiseSpeed, Vector2 newDirection, int newActivationFlag = -1)
+        {
+            force = newForce;
+            maxRiseSpeed = newMaxRiseSpeed;
+            direction = newDirection;
+            activationFlag = newActivationFlag;
+            RecomputeDir();
+        }
+
+        /// <summary>
         /// The updraft force this zone exerts on a body at <paramref name="position"/> moving at
         /// <paramref name="velocity"/> this tick — or zero if the point is outside the column or already rising
         /// at the <see cref="maxRiseSpeed"/> cap. A pure function of the passed state (no trigger membership),
@@ -62,6 +85,7 @@ namespace InflatableIdiots.Hazards
         /// </summary>
         public Vector2 SampleForce(Vector2 position, Vector2 velocity)
         {
+            if (!IsActive) return Vector2.zero;
             if (zone == null || !zone.OverlapPoint(position)) return Vector2.zero;
             if (Vector2.Dot(velocity, dir) >= maxRiseSpeed) return Vector2.zero;
             return dir * force;
@@ -88,6 +112,7 @@ namespace InflatableIdiots.Hazards
 
         void FixedUpdate()
         {
+            if (!IsActive) return; // gated fan off this tick (e.g. nobody on the weight plate / lift empty)
             bodies.RemoveWhere(rb => rb == null);
             foreach (var rb in bodies)
             {

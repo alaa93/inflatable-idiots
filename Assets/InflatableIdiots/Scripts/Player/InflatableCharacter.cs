@@ -38,6 +38,13 @@ namespace InflatableIdiots.Player
 
         public float TriggerValue { get; private set; }
 
+        /// <summary>
+        /// Current inflation, 0 (deflated / heavy / anchored) .. 1 (inflated / light / floaty), derived from the
+        /// air budget exactly as the mass/gravity/scale lerps are. Read by <see cref="Level.ZoneSensor"/> to
+        /// qualify a player as "light" or "heavy" for the co-op switch/plate puzzles.
+        /// </summary>
+        public float InflationK => currentInflationK;
+
         // --- Networking seam (additive; defaults preserve local play) ---
         // When false, FixedUpdate skips ground check + walk/jump so a remote client's body can be driven by
         // NetworkTransform without local physics fighting it. UpdatePhysicsState still runs so inflation
