@@ -22,10 +22,11 @@ Prove the riskiest 20% before building full netcode:
 5. ✅ **Smoothness RESOLVED (2026-06-04)** — smoothest 2-PC test yet; Photon Fusion migration **dropped**. Hose spring softened, air-size desync + own-player sprite floor-dip fixed ([[Networking Spike]])
 6. ✅ **PlayerTest physics freeze fixed (2026-06-04)** — `LocalPhysicsDriver` drives `Physics2D.Simulate()` in non-networked scenes when FishNet's Script mode leaks; project default back to Fixed Update ([[Setup and Gotchas]])
 7. ✅ **`NetworkSpikeSceneBuilder` (2026-06-04, `f9314c5`)** — one-click rebuild of the networked scene (full Fan Trap arena + NetworkManager/NetSpike wiring) from code, sibling of [[Test Scene Builder]]; assembles from the existing prefabs
-8. 🔄 **Fan Trap → netcode (in progress, `6188373`):** run coordination done — hazard **start-gate** (waits for both players) + **host-authoritative in-place restart**, either player, via `NetworkRunController` on the link ([[Run Controller]]). Remaining: authoritative hazard *position* sync (each machine runs its own; re-syncs on restart) + lock controls on the end screen
+8. ✅ **Fan Trap run-coordination → netcode (`6188373` + `5185107`):** hazard **start-gate** (waits for both players) + **host-authoritative in-place restart** (either player) via `NetworkRunController` on the link; **hazard height now host-authoritative** (clients mirror a per-tick SyncVar — no per-machine drift) + **controls lock off-run** (`ControlsLocked` zeroes the replicate input before start / after end). See [[Run Controller]], [[Rising Hazard]], [[Network Player Controller]]
+9. 🔄 **Remaining Fan Trap netcode:** [[Fan Zone]] updraft force authority/prediction in net play (unvalidated — owner predicts the fan force + reconciles vs host; spectators kinematic via NetworkTransform)
 
 ## 🔭 After the spike validates
-- Finish the [[Fan Trap]] netcode port (authoritative hazard sync + end-screen polish — started, item 8 above)
+- Finish the [[Fan Trap]] netcode port — hazard height sync + off-run control lock done (item 8); [[Fan Zone]] updraft force authority still to validate (item 9)
 - [[Voice Chat - Dissonance]] (the "GIVE ME 40%" moment over the wire)
 - Real UI (replace the OnGUI placeholders in [[Run Controller]])
 - Revisit [[Decision - 2P now 4P later]] and [[Parked Ideas]] only after online co-op is proven

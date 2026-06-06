@@ -15,9 +15,10 @@ tags: [networking, fishnet]
 - `SyncVar<int> Slot` (0/1) assigned by [[Network Spawner]], read by [[Network Air Budget]]
 - **Visual smoothing** via the NetworkObject's Graphical Object (sprite on a child) — corrections ease instead of snapping. Smooths **Position + Rotation only**; Scale is budget-driven by [[Inflation State]] (not reconcile), and smoothing it dipped the owner's sprite into the floor.
 - **Spectated players are NOT predicted** (refined 2026-06-04). The NetworkObject runs with **state forwarding OFF** + a server-auth NetworkTransform, so spectators follow the host's real motion instead of replaying it without the host-only [[Network Hose]] force (the cause of the deflated-body stutter). This controller sets spectator bodies **kinematic** in `OnStartClient` — when `!IsOwner && !IsServerInitialized`: zero velocity + `bodyType = Kinematic` — so local physics can't fight the synced position. See [[Setup and Gotchas]].
+- **Controls lock off-run** (2026-06-06): when [[Run Controller]]'s `ControlsLocked` is set (before the run starts / after it ends), `PerformReplicate` zeroes the `ReplicateData` (move/jump/trigger) — identically on the predicting owner and the authoritative server, so there's no reconcile fight. Gravity still settles the body; only walk/jump/air-transfer are cut. Replaces the `timeScale = 0` freeze local play uses (which would stall FishNet's tick).
 
 ## Where it lives
 - `Assets/InflatableIdiots/Scripts/Net/NetworkInflatableController.cs`
 
 ## Connections
-[[Player Character]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Air Budget]] · [[Input System]]
+[[Player Character]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Air Budget]] · [[Input System]] · [[Run Controller]]

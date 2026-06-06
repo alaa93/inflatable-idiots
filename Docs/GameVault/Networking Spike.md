@@ -55,8 +55,15 @@ The committed `SimulationMode=Script` (FishNet's runtime leak) froze local non-n
 - **`NetworkSpikeSceneBuilder`** (`f9314c5`): one-click rebuild of the networked scene from code (full Fan Trap arena + NetworkManager prefab instance + NetSpike spawner wiring + HUD), the sibling of [[Test Scene Builder]]. Shared arena geometry extracted into `SceneBuildHelpers`. Assembles from the existing prefabs (their FishNet wiring is inspector-only).
 - **Fan Trap run-coordination ported** (`6188373`): the rising hazard now **waits for both players** before climbing, and **restart resets the run IN PLACE** (either player) instead of reloading the scene — a reload dropped the Steam/FishNet session + host GUI. Host-authoritative via a new `NetworkRunController` on the link (SyncVar run-state + restart epoch + either-player ServerRpc). Bug found + fixed in 2-PC testing: [[Goal Zone]]'s win latch survived the in-place restart and blocked replays → cleared on restart. See [[Run Controller]] / [[Setup and Gotchas]].
 
+## Update — hazard height sync + off-run control lock ✅ (2026-06-06, `5185107`)
+Polish closing the two gaps the run-coordination commit (`6188373`) left:
+- **Hazard is now host-authoritative**, not self-run per machine. The host publishes its climb each tick to a `SyncVar<float>` on `NetworkRunController`; clients **mirror** it instead of self-rising, so independent start-gate timing + `IsOver` sync latency can no longer drift the bar apart — the only authority that ends the run (the host) shows everyone the same bar. `NaN` = unpublished → clients pin to the authored start; reset to `NaN` on restart so no stale-high value flashes. See [[Rising Hazard]].
+- **Controls lock off-run** — `RunController.ControlsLocked` (`!RunStarted || IsOver`) zeroes the replicate input in [[Network Player Controller]]'s `PerformReplicate`, on owner + server identically (no reconcile fight). Stands in for the `timeScale = 0` freeze local play uses (networked can't — it stalls FishNet's tick). Gravity still settles the body; only walk/jump/air-transfer are cut.
+
+Awaiting a 2-PC re-test (hazard reads identically on both screens through a full climb + restart; neither player can move before both join / after caught-or-solved).
+
 ## Next session
-📌 Finish the [[Fan Trap]] netcode port: authoritative hazard *position* sync (each machine runs its own hazard; re-syncs only on restart) + lock controls on the end screen. Then [[Voice Chat - Dissonance]]. See [[Roadmap]].
+📌 2-PC re-test the hazard sync + control lock, then the last open Fan Trap netcode item — **[[Fan Zone]] updraft force authority** (each machine's FanZone pushes its local dynamic bodies; validate the owner's predicted fan force reconciles cleanly vs the host, spectators follow kinematic via NetworkTransform). Then [[Voice Chat - Dissonance]] + real UI. See [[Roadmap]].
 
 ## Connections
 [[Networking Architecture]] · [[Steam Integration]] · [[FishNet Netcode]] · [[Network Spawner]] · [[Network Player Controller]] · [[Network Air Budget]] · [[Network Hose]] · [[Performance HUD]] · [[Windows Build]] · [[Setup and Gotchas]]
