@@ -6,6 +6,7 @@ using FishNet.Transporting;
 using FishNet.Utility.Template;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using InflatableIdiots.Level;
 using InflatableIdiots.Player;
 
 namespace InflatableIdiots.Net
@@ -170,6 +171,13 @@ namespace InflatableIdiots.Net
         [Replicate]
         void PerformReplicate(ReplicateData rd, ReplicateState state = ReplicateState.Invalid, Channel channel = Channel.Unreliable)
         {
+            // Lock controls while the run hasn't started (waiting for both players) or after it ends
+            // (caught/solved). Zeroing here — identically on the predicting owner and the authoritative server —
+            // keeps them in agreement so there's no reconcile fight; gravity still settles the body, only
+            // walk/jump/air-transfer input is cut. (Local play freezes via timeScale instead; see RunController.)
+            if (RunController.Instance != null && RunController.Instance.ControlsLocked)
+                rd = new ReplicateData(Vector2.zero, false, 0f);
+
             // Trigger feeds the server-authoritative zero-sum air budget (read in NetworkAirBudget).
             character.SetTrigger(rd.Trigger);
             // Ground check + walk + jump + inflation state, on the rigidbody. Re-runs verbatim during replays.

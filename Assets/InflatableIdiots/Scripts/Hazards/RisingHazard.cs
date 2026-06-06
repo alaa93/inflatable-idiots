@@ -8,6 +8,11 @@ namespace InflatableIdiots.Hazards
     /// A wide hazard bar (think rising lava) that climbs at a constant speed. Touching it with EITHER
     /// player ends the run (reports a loss to <see cref="RunController"/>, which then freezes the scene).
     /// Moves via a kinematic Rigidbody2D so trigger detection stays reliable while it travels.
+    ///
+    /// Networked play: the host drives the climb and replicates its height; clients DON'T self-rise but
+    /// mirror that height (via <see cref="RunController.TryGetNetworkHazardHeight"/>). One source of truth —
+    /// so the hazard can't drift apart from independent start-gate timing, and the host (the only authority
+    /// that ends the run) shows everyone the same bar. Local play is unchanged: it just self-rises.
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(Collider2D))]
@@ -33,10 +38,22 @@ namespace InflatableIdiots.Hazards
         void FixedUpdate()
         {
             var run = RunController.Instance;
-            // Hold at the start until the run begins (networked: both players joined), and stop once it's over
-            // (the timeScale freeze already halts us; this also covers a win).
-            if (run == null || !run.RunStarted || run.IsOver) return;
-            rb.MovePosition(rb.position + Vector2.up * speed * Time.fixedDeltaTime);
+            if (run == null) return;
+
+            // Networked client: mirror the host's authoritative height instead of self-rising. NaN = the host
+            // hasn't published yet (run not live) → hold at the authored start until its first value arrives.
+            if (run.TryGetNetworkHazardHeight(out float netY))
+            {
+                rb.MovePosition(new Vector2(rb.position.x, float.IsNaN(netY) ? startPosition.y : netY));
+                return;
+            }
+
+            // Host / local: hold at the start until the run begins (networked: both players joined), and stop
+            // once it's over (the timeScale freeze already halts us locally; this also covers a win).
+            if (!run.RunStarted || run.IsOver) return;
+            Vector2 next = rb.position + Vector2.up * speed * Time.fixedDeltaTime;
+            rb.MovePosition(next);
+            run.PublishHazardHeight(next.y); // host → clients (no-op locally); publish the commanded target
         }
 
         void OnTriggerEnter2D(Collider2D other)

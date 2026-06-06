@@ -21,7 +21,10 @@ namespace InflatableIdiots.Level
     /// R reloads the scene. NETWORKED play: an <see cref="IRunNetwork"/> attaches when the link spawns — run
     /// state then comes from the host (mirrored, so banners agree) and R resets the run IN PLACE through the
     /// network instead of reloading (a reload would drop the Steam/FishNet session + the host's join GUI). No
-    /// timeScale freeze when networked (it would stall FishNet's tick); the hazard simply stops on IsOver.
+    /// timeScale freeze when networked (it would stall FishNet's tick), so two things stand in for it: the
+    /// hazard mirrors the host's replicated height (TryGetNetworkHazardHeight) rather than self-rising, and
+    /// player input is suppressed whenever <see cref="ControlsLocked"/> — before the run starts and after it
+    /// ends — read by the networked controller.
     ///
     /// Also tracks altitude: the peak height any player reaches above the start, shown live during play
     /// and frozen as "Altitude reached: X m" on the end screen. Placeholder OnGUI UI for now.
@@ -39,6 +42,14 @@ namespace InflatableIdiots.Level
 
         // True once the run has begun (enough players present). The rising hazard only climbs while this is set.
         public bool RunStarted { get; private set; }
+
+        /// <summary>
+        /// True when player input should be suppressed: before the run starts (waiting for everyone to join)
+        /// or after it ends (caught/solved). Local play freezes the whole scene with timeScale instead, but
+        /// networked play can't (it would stall FishNet's tick), so the networked controller reads this to
+        /// lock walk/jump/air-transfer until the run is live.
+        /// </summary>
+        public bool ControlsLocked => !RunStarted || IsOver;
 
         [Tooltip("Players that must be present before the run starts (and the hazard begins to rise).")]
         [SerializeField] int requiredPlayers = 2;
@@ -83,6 +94,24 @@ namespace InflatableIdiots.Level
             if (net != network) return;
             net.Restarted -= OnNetworkRestarted;
             net = null;
+        }
+
+        /// <summary>
+        /// Networked client: the rising hazard should mirror the host's authoritative height (returned in
+        /// <paramref name="y"/>, NaN until the host's first publish) instead of self-rising. Returns false on
+        /// the host and in local play, where the hazard drives itself.
+        /// </summary>
+        public bool TryGetNetworkHazardHeight(out float y)
+        {
+            if (net != null && !net.IsServer) { y = net.HazardHeight; return true; }
+            y = 0f;
+            return false;
+        }
+
+        /// <summary>Host: replicate the rising hazard's height to clients. No-op on clients and in local play.</summary>
+        public void PublishHazardHeight(float y)
+        {
+            if (net != null && net.IsServer) net.ServerPublishHazardHeight(y);
         }
 
         public void ReportWin()

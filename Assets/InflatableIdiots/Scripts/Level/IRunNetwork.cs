@@ -16,8 +16,18 @@ namespace InflatableIdiots.Level
         /// <summary>Authoritative run state, synced from the host to every peer.</summary>
         RunState State { get; }
 
+        /// <summary>
+        /// Host-authoritative rising-hazard height, synced to every peer so the hazard sits at the same place
+        /// on both screens (and the host's loss decision matches what each player sees). NaN until the host
+        /// first publishes — clients hold the hazard at its authored start until then.
+        /// </summary>
+        float HazardHeight { get; }
+
         /// <summary>Host-only: publish the authoritative end state (ignored on clients).</summary>
         void ServerSetState(RunState state);
+
+        /// <summary>Host-only: replicate the rising hazard's current height to clients (ignored on clients).</summary>
+        void ServerPublishHazardHeight(float y);
 
         /// <summary>Either player: ask the host to reset the run in place (no scene reload).</summary>
         void RequestRestart();

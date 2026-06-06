@@ -14,6 +14,9 @@ namespace InflatableIdiots.Net
     /// • Win/lose state is a SyncVar the host sets and every peer mirrors (so banners agree) — see
     ///   <see cref="RunController.ReportWin"/>/<see cref="RunController.ReportLoss"/>, which defer to the host
     ///   when networked.
+    /// • The rising hazard's height is a SyncVar the host publishes each tick and clients mirror (see
+    ///   <see cref="RisingHazard"/>), so it can't drift between machines from independent start-gate timing —
+    ///   the only authority that decides "caught" (the host) is the one whose hazard every player sees.
     /// • Restart works for EITHER player: a client routes through a ServerRpc, the host runs it directly. The
     ///   server teleports both players to spawn (<see cref="NetPlayerSpawner"/>), resets the air budget
     ///   (<see cref="NetworkAirBudget"/>), clears the state, and bumps a restart epoch. The epoch change fires
@@ -27,6 +30,11 @@ namespace InflatableIdiots.Net
         readonly SyncVar<RunState> _state = new SyncVar<RunState>(RunState.Playing, new SyncTypeSettings(0f));
         // Bumped on each restart; the change is the signal for every peer to reset its local elements.
         readonly SyncVar<uint> _restartEpoch = new SyncVar<uint>(0, new SyncTypeSettings(0f));
+        // Host-authoritative rising-hazard height; clients mirror it instead of self-rising (so the hazard
+        // can't drift between machines from independent start timing). Sync every tick to track the climb;
+        // NaN means "not published yet" → clients pin the hazard at its authored start until the host's first
+        // value arrives (also reset to NaN on restart so a stale high value can't flash before the re-climb).
+        readonly SyncVar<float> _hazardHeight = new SyncVar<float>(float.NaN, new SyncTypeSettings(0f));
 
         // Server-only refs, handed in by NetPlayerSpawner before Spawn.
         NetPlayerSpawner spawner;
@@ -34,6 +42,7 @@ namespace InflatableIdiots.Net
 
         public bool IsServer => base.IsServerInitialized;
         public RunState State => _state.Value;
+        public float HazardHeight => _hazardHeight.Value;
         public event System.Action Restarted;
 
         /// <summary>Server-only: wire the references needed to perform a reset.</summary>
@@ -73,6 +82,13 @@ namespace InflatableIdiots.Net
             _state.Value = state;
         }
 
+        // IRunNetwork — host publishes its rising-hazard height each tick; clients mirror it.
+        public void ServerPublishHazardHeight(float y)
+        {
+            if (!base.IsServerInitialized) return;
+            _hazardHeight.Value = y;
+        }
+
         // IRunNetwork — either player asks to restart.
         public void RequestRestart()
         {
@@ -92,6 +108,9 @@ namespace InflatableIdiots.Net
             if (airBudget != null) airBudget.ResetServer();
 
             _state.Value = RunState.Playing;
+            // Mark the hazard "unpublished" so clients pin to the authored start until the host's next
+            // FixedUpdate republishes the climbing height — no stale high value flashes during the reset.
+            _hazardHeight.Value = float.NaN;
             _restartEpoch.Value++; // → OnRestartEpochChanged on every peer → each resets its local hazard
         }
     }
