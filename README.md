@@ -52,10 +52,11 @@ The single gym level, built to be the most legible demo of *why* shared air matt
 | *Fan Trap* gym level (local 2P) | ✅ Implemented & validated |
 | Online co-op spike (Steam + 2 PCs) | ✅ Validated — smoothest test to date |
 | *Fan Trap* run coordination over the network | ✅ Host-authoritative start-gate, in-place restart, synced hazard, off-run control lock |
-| Fan Zone force authority over the network | 🔄 Implementing / to validate |
-| Voice chat, real UI, art pass | 🔭 Planned |
+| Fan Zone updraft over the network | ✅ Validated — applied inside the prediction tick, reconcile-safe (no stutter riding the hose) |
+| **Full *Fan Trap* loop online (2 PCs)** | ✅ **Validated end-to-end** — the networking spike is proven |
+| Voice chat, real UI, art pass | 🔭 Planned next |
 
-This is an in-development **prototype** by a solo developer — primitive art, programmer UI, and a deliberately lean scope while the core idea is being proven. The current frontier is taking the validated local co-op online.
+This is an in-development **prototype** by a solo developer — primitive art, programmer UI, and a deliberately lean scope while the core idea is being proven. The local co-op was validated in playtests, and the online co-op spike is now validated end-to-end across two PCs — so the riskiest part is behind it. The next frontier is voice chat and replacing the placeholder UI.
 
 ## Tech stack
 
